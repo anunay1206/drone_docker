@@ -38,6 +38,7 @@ class AnalyzeTrigger(BaseModel):
     detector / feature extractor / pipeline params in the same call. params is
     merged onto the project's existing params (not replaced wholesale)."""
 
+    action: str | None = None
     run_name: str | None = None
     project_id: str | None = None
     model_key: str | None = None
@@ -48,6 +49,7 @@ class AnalyzeTrigger(BaseModel):
 class FinalizeTrigger(BaseModel):
     """Optional body for POST /runs/finalize: identify the project explicitly."""
 
+    action: str | None = None
     project_id: str | None = None
 
 

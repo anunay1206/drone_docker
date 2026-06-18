@@ -319,6 +319,7 @@ async function analyze(){
     const klist=$("klist").value.split(",").map(s=>parseInt(s.trim(),10)).filter(n=>!isNaN(n));
     const body={
       project_id: PID,
+      action: "analyze",
       run_name: $("runname").value.trim()||null,
       model_key: $("modelKey").value||null,
       source_epsg: numOrNull("epsg"),
@@ -331,7 +332,7 @@ async function analyze(){
       }
     };
     $("astage").textContent="running analyze request…";
-    const c=rememberProject(await api("/api/v1/project/analyze",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}));
+    const c=rememberProject(await api("/api/v1/project/drone_api",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}));
     $("ainfo").innerHTML='<span class="ok">clustering ready</span> &middot; k available: '+(c.available_k||[]).join(", ")+' &middot; recommended: <b>'+c.recommended_k+'</b>';
     if(c.recommended_k) $("ck").value=c.recommended_k;
     log("analyze done"); refreshProject();
@@ -366,10 +367,8 @@ async function finalize(){
   if(!PID) return alert("Create a project first");
   $("btnFinal").disabled=true; $("fprog").style.display="block"; $("results").textContent="";
   try{
-    const t=rememberProject(await api("/api/v1/project/runs/finalize",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({project_id:PID})}));
-    log("finalize triggered &middot; mode="+t.mode);
-    await pollState(["COMPLETED"],["FAILED"],$("fstage"));
-    const r=rememberProject(await api("/api/v1/project/results"));
+    $("fstage").textContent="running finalize request…";
+    const r=rememberProject(await api("/api/v1/project/drone_api",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({project_id:PID,action:"finalize"})}));
     const d=r.downloads||{};
     let html='<span class="ok">completed.</span><div style="margin-top:6px">downloads:</div><ul style="margin:4px 0">';
     for(const [k,v] of Object.entries(d)) if(v) html+=`<li><a href="${apiBase()}${v}" target="_blank">${k}</a></li>`;

@@ -36,6 +36,35 @@ def _analyze_payload(request: Request, project) -> dict:
     return payload
 
 
+@router.post("/project/drone_api")
+def drone_api(
+    request: Request,
+    body: AnalyzeTrigger | None = None,
+    db: Session = Depends(get_db),
+    user: str = Depends(require_api_key),
+    _svc: str = Depends(require_service_token),
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+):
+    if not body or not body.project_id or not body.action:
+        raise HTTPException(400, {
+            "code": "BAD_REQUEST",
+            "message": "project_id and action are required in the request body",
+            "project_id": getattr(body, "project_id", None),
+        })
+    if body.action == "finalize":
+        from app.api.v1.finalize import run_finalize
+        project = resolve_project(db, user, body.project_id)
+        return run_finalize(request, body, project, db, user, idempotency_key)
+    if body.action != "analyze":
+        raise HTTPException(400, {
+            "code": "BAD_REQUEST",
+            "message": "action must be 'analyze' or 'finalize'",
+            "project_id": body.project_id,
+        })
+    project = resolve_project(db, user, body.project_id)
+    return run_analyze(request, body, project, db, user, idempotency_key)
+
+
 @router.post("/projects/{project_id}/analyze")
 @router.post("/project/analyze")
 def start_analyze(
@@ -46,6 +75,17 @@ def start_analyze(
     user: str = Depends(require_api_key),
     _svc: str = Depends(require_service_token),
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+):
+    return run_analyze(request, body, project, db, user, idempotency_key)
+
+
+def run_analyze(
+    request: Request,
+    body: AnalyzeTrigger | None,
+    project,
+    db: Session,
+    user: str,
+    idempotency_key: str | None = None,
 ):
     path_project_id = request.path_params.get("project_id")
     if not path_project_id and not (body and body.project_id):

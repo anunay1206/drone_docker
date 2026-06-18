@@ -13,7 +13,7 @@ from app.api.deps import get_project, require_api_key, require_service_token, re
 from app.api.v1.results import build_results_payload
 from app.db import models
 from app.db.session import get_db
-from app.schemas.project import FinalizeTrigger
+from app.schemas.project import AnalyzeTrigger, FinalizeTrigger
 from app.workers.tasks import job_b_finalize
 
 router = APIRouter()
@@ -32,6 +32,17 @@ def start_finalize(
     user: str = Depends(require_api_key),
     _svc: str = Depends(require_service_token),
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+):
+    return run_finalize(request, body, project, db, user, idempotency_key)
+
+
+def run_finalize(
+    request: Request,
+    body: AnalyzeTrigger | FinalizeTrigger | None,
+    project,
+    db: Session,
+    user: str,
+    idempotency_key: str | None = None,
 ):
     path_project_id = request.path_params.get("project_id")
     if not path_project_id and not (body and body.project_id):
