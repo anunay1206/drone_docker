@@ -3,13 +3,6 @@
 Use the prebuilt Docker Hub images to run the workstation on a machine where
 the model files live outside the repo.
 
-## What You Need
-
-- Docker
-- This repo
-- A folder outside the repo for the detector weights
-- The three `.pth` files used by `code/models.yaml`
-
 ## 1. Put Models In A Separate Folder
 
 Example:
