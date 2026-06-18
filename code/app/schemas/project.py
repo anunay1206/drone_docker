@@ -45,6 +45,12 @@ class AnalyzeTrigger(BaseModel):
     params: dict | None = None
 
 
+class FinalizeTrigger(BaseModel):
+    """Optional body for POST /runs/finalize: identify the project explicitly."""
+
+    project_id: str | None = None
+
+
 class ProjectUpdate(BaseModel):
     """Partial update for a re-run: change params (and optionally model/EPSG) and
     open the next run on the same uploaded ortho. All fields optional; params is

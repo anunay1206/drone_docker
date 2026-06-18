@@ -6,13 +6,14 @@ replay/in-flight semantics as ``/analyze`` (v4 §9.4).
 """
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_project, require_service_token
+from app.api.deps import get_project, require_api_key, require_service_token, resolve_project
 from app.api.v1.results import build_results_payload
 from app.db import models
 from app.db.session import get_db
+from app.schemas.project import FinalizeTrigger
 from app.workers.tasks import job_b_finalize
 
 router = APIRouter()
@@ -24,11 +25,24 @@ _FINALIZE_OK = {"LABELS_SUBMITTED", "FINALIZING", "COMPLETED", "FAILED"}
 @router.post("/projects/{project_id}/finalize")
 @router.post("/project/finalize")
 def start_finalize(
+    request: Request,
+    body: FinalizeTrigger | None = None,
     project=Depends(get_project),
     db: Session = Depends(get_db),
+    user: str = Depends(require_api_key),
     _svc: str = Depends(require_service_token),
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
 ):
+    path_project_id = request.path_params.get("project_id")
+    if not path_project_id and not (body and body.project_id):
+        raise HTTPException(400, {
+            "code": "BAD_REQUEST",
+            "message": "project_id is required in the request body",
+            "project_id": None,
+        })
+    if body and body.project_id:
+        project = resolve_project(db, user, body.project_id)
+
     if idempotency_key:
         prior = (
             db.query(models.Job)

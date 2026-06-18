@@ -12,7 +12,7 @@ class ComputeRequest(BaseModel):
     """Body the STACD Airflow DAG node posts to our /compute/* endpoints."""
 
     execution_id: str          # per-attempt UUID minted by Airflow (for lineage)
-    project_id: str | None = None  # optional; defaults to latest project for dev/no-id calls
+    project_id: str            # required: the project to analyze/finalize
     run: int | None = None     # optional; worker uses project.current_run if omitted
 
 

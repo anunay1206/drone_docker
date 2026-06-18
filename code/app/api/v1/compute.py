@@ -70,14 +70,7 @@ def _prior_job(db: Session, project, key: str | None):
 
 
 def _get_compute_project(db: Session, req: ComputeRequest):
-    if req.project_id:
-        return db.get(models.Project, req.project_id)
-    return (
-        db.query(models.Project)
-        .filter_by(user_id="default")
-        .order_by(models.Project.updated_at.desc(), models.Project.created_at.desc())
-        .first()
-    )
+    return db.get(models.Project, req.project_id)
 
 
 def _analyze_asset_id(project) -> str:
@@ -108,9 +101,11 @@ def compute_analyze(
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
 ):
     """Single-node DAG A callback: Detectree2 detection + DINOv2/KMeans/t-SNE."""
+    if not req.project_id:
+        return _err(400, "BAD_REQUEST", "project_id is required in the request body")
     project = _get_compute_project(db, req)
     if not project:
-        return _err(404, "NOT_FOUND", f"Project {req.project_id or 'latest'} not found", req.project_id)
+        return _err(404, "NOT_FOUND", f"Project {req.project_id} not found", req.project_id)
 
     key = f"compute:{idempotency_key or req.execution_id}"
     prior = _prior_job(db, project, key)
@@ -150,9 +145,11 @@ def compute_finalize(
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
 ):
     """Single-node DAG B callback: assign species + validate + reproject + KMZ."""
+    if not req.project_id:
+        return _err(400, "BAD_REQUEST", "project_id is required in the request body")
     project = _get_compute_project(db, req)
     if not project:
-        return _err(404, "NOT_FOUND", f"Project {req.project_id or 'latest'} not found", req.project_id)
+        return _err(404, "NOT_FOUND", f"Project {req.project_id} not found", req.project_id)
 
     key = f"compute:{idempotency_key or req.execution_id}"
     prior = _prior_job(db, project, key)

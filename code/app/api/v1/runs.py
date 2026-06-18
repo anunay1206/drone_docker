@@ -13,7 +13,7 @@ reset_dirs.
 """
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_project, require_api_key, resolve_project
@@ -21,7 +21,7 @@ from app.core.models_registry import resolve_backbone, resolve_model_path
 from app.core.storage import ensure_project_dirs
 from app.db import models
 from app.db.session import get_db
-from app.schemas.project import AnalyzeTrigger
+from app.schemas.project import AnalyzeTrigger, FinalizeTrigger
 from app.services.airflow_client import airflow_enabled
 from app.services.project_service import USED_RUN_STATES, archive_current_run
 from app.services.run_dispatch import dispatch_analyze, dispatch_finalize
@@ -175,7 +175,23 @@ def trigger_analyze(
 
 @router.post("/projects/{project_id}/runs/finalize")
 @router.post("/project/runs/finalize")
-def trigger_finalize(project=Depends(get_project), db: Session = Depends(get_db)):
+def trigger_finalize(
+    request: Request,
+    body: FinalizeTrigger | None = None,
+    project=Depends(get_project),
+    db: Session = Depends(get_db),
+    user: str = Depends(require_api_key),
+):
+    path_project_id = request.path_params.get("project_id")
+    if not path_project_id and not (body and body.project_id):
+        raise HTTPException(400, {
+            "code": "BAD_REQUEST",
+            "message": "project_id is required in the request body",
+            "project_id": None,
+        })
+    if body and body.project_id:
+        project = resolve_project(db, user, body.project_id)
+
     n_labels = db.query(models.ClusterLabel).filter_by(project_id=project.id).count()
     if n_labels == 0:
         raise HTTPException(400, {

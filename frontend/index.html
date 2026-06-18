@@ -366,7 +366,7 @@ async function finalize(){
   if(!PID) return alert("Create a project first");
   $("btnFinal").disabled=true; $("fprog").style.display="block"; $("results").textContent="";
   try{
-    const t=rememberProject(await api("/api/v1/project/runs/finalize",{method:"POST"}));
+    const t=rememberProject(await api("/api/v1/project/runs/finalize",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({project_id:PID})}));
     log("finalize triggered &middot; mode="+t.mode);
     await pollState(["COMPLETED"],["FAILED"],$("fstage"));
     const r=rememberProject(await api("/api/v1/project/results"));
