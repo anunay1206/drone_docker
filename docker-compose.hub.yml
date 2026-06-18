@@ -36,5 +36,7 @@ services:
     restart: unless-stopped
     ports:
       - "8200:80"
+    volumes:
+      - ./frontend:/usr/share/nginx/html
     depends_on:
       - api
