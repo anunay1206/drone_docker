@@ -1,0 +1,756 @@
+{
+    "status": "completed",
+    "Success": "Layer generation completed",
+    "message": "Layer generation completed",
+    "task_id": "d50a922f-2e02-4f6b-9da6-977cbb66e9fa",
+    "asset_id": [
+        "projects/ee-corestackdev/assets/apps/mws/rajasthan/bhilwara/mandal/bhilwara_mandal_2017-07-01_2018-06-30_LULCmap_10m",
+        "projects/ee-corestackdev/assets/apps/mws/rajasthan/bhilwara/mandal/bhilwara_mandal_2018-07-01_2019-06-30_LULCmap_10m"
+    ],
+    "asset_ids": [
+        "projects/ee-corestackdev/assets/apps/mws/rajasthan/bhilwara/mandal/bhilwara_mandal_2017-07-01_2018-06-30_LULCmap_10m",
+        "projects/ee-corestackdev/assets/apps/mws/rajasthan/bhilwara/mandal/bhilwara_mandal_2018-07-01_2019-06-30_LULCmap_10m"
+    ],
+    "stac": [
+        {
+            "type": "Feature",
+            "stac_version": "1.1.0",
+            "stac_extensions": [
+                "https://stac-extensions.github.io/projection/v2.0.0/schema.json",
+                "https://stac-extensions.github.io/classification/v2.0.0/schema.json"
+            ],
+            "id": "rajasthan_bhilwara_mandal_land_use_land_cover_raster_2017",
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [
+                    [
+                        [
+                            74.26677881012685,
+                            25.262961409179653
+                        ],
+                        [
+                            74.26677881012685,
+                            25.665047330351552
+                        ],
+                        [
+                            74.64568819696846,
+                            25.665047330351552
+                        ],
+                        [
+                            74.64568819696846,
+                            25.262961409179653
+                        ],
+                        [
+                            74.26677881012685,
+                            25.262961409179653
+                        ]
+                    ]
+                ]
+            },
+            "bbox": [
+                74.26677881012685,
+                25.262961409179653,
+                74.64568819696846,
+                25.665047330351552
+            ],
+            "properties": {
+                "title": "Land Use Land Cover : 2017",
+                "description": "Land Use Land Cover (LULC) map for India. Novelty of this approach is intra-annual classes for agriculture and water availability aligned to the agriculture seasons of India.\n\nThe Pan India map is available from 2017 onwards at 10m resolution. These are the classes in the current version of LULC:\n1. builtup\n2. water in kharif only\n3. water in kharif and rabi only\n4. water in kharif, rabi and zaid (perennial water)\n5. cropland\n6. trees and forest\n7. barren land\n8. single kharif cropping\n9. single non-kharif cropping\n10. double cropping\n11. tripple cropping\n12. shrubs and scrubs\n\nInput to the model is Dynamic World output, and timeseries data from Landsat-7, Landsat-8, Sentinel-2, Sentinel-1 and MODIS processed using the IndiaSAT methodology. Details of methodology can be found in our technical manual and the codebase on [github](https://github.com/core-stack-org/core-stack-backend/tree/main/computing/lulc).",
+                "gsd": 10.0,
+                "keywords": [
+                    "land use land cover"
+                ],
+                "start_datetime": "2017-07-01T00:00:00Z",
+                "end_datetime": "2018-06-30T00:00:00Z",
+                "proj:code": "EPSG:4326",
+                "proj:shape": [
+                    4476,
+                    4218
+                ],
+                "datetime": "2026-06-10T09:27:38.337213Z"
+            },
+            "links": [
+                {
+                    "rel": "root",
+                    "href": "../../../../../catalog.json",
+                    "type": "application/json",
+                    "title": "CoRE Stack Spatio Temporal Asset Catalog"
+                },
+                {
+                    "rel": "collection",
+                    "href": "../collection.json",
+                    "type": "application/json",
+                    "title": "mandal"
+                },
+                {
+                    "rel": "parent",
+                    "href": "../collection.json",
+                    "type": "application/json",
+                    "title": "mandal"
+                }
+            ],
+            "assets": {
+                "data": {
+                    "href": "http://geoserver:8080/geoserver/LULC_level_3/wcs?service=WCS&version=2.0.1&request=GetCoverage&CoverageId=LULC_level_3:LULC_17_18_bhilwara_mandal_level_3&format=geotiff&compression=LZW",
+                    "type": "image/tiff; application=geotiff",
+                    "title": "Raster Layer",
+                    "classification:classes": [
+                        {
+                            "value": 0,
+                            "name": "clear",
+                            "description": "clear",
+                            "color_hint": "000000"
+                        },
+                        {
+                            "value": 1,
+                            "name": "built_up",
+                            "description": "built_up",
+                            "color_hint": "ff0000"
+                        },
+                        {
+                            "value": 2,
+                            "name": "kharif_water",
+                            "description": "kharif_water",
+                            "color_hint": "74ccf4"
+                        },
+                        {
+                            "value": 3,
+                            "name": "kharif_and_rabi_water",
+                            "description": "kharif_and_rabi_water",
+                            "color_hint": "1ca3ec"
+                        },
+                        {
+                            "value": 4,
+                            "name": "kharif_and_rabi_and_zaid_water",
+                            "description": "kharif_and_rabi_and_zaid_water",
+                            "color_hint": "0f5e9c"
+                        },
+                        {
+                            "value": 5,
+                            "name": "crops",
+                            "description": "crops",
+                            "color_hint": "f1c232"
+                        },
+                        {
+                            "value": 6,
+                            "name": "trees",
+                            "description": "trees",
+                            "color_hint": "38761d"
+                        },
+                        {
+                            "value": 7,
+                            "name": "barren_land",
+                            "description": "barren_land",
+                            "color_hint": "a9a9a9"
+                        },
+                        {
+                            "value": 8,
+                            "name": "single_kharif_cropping",
+                            "description": "single_kharif_cropping",
+                            "color_hint": "bad93e"
+                        },
+                        {
+                            "value": 9,
+                            "name": "single_non-kharif_cropping",
+                            "description": "single_non-kharif_cropping",
+                            "color_hint": "f59d22"
+                        },
+                        {
+                            "value": 10,
+                            "name": "double_cropping",
+                            "description": "double_cropping",
+                            "color_hint": "ff9371"
+                        },
+                        {
+                            "value": 11,
+                            "name": "tripple_or_annual_or_perennial_cropping",
+                            "description": "tripple_or_annual_or_perennial_cropping",
+                            "color_hint": "b3561d"
+                        },
+                        {
+                            "value": 12,
+                            "name": "shrubs_and_scrubs",
+                            "description": "shrubs_and_scrubs",
+                            "color_hint": "a9a9a9"
+                        }
+                    ],
+                    "roles": [
+                        "data"
+                    ]
+                },
+                "style": {
+                    "href": "https://raw.githubusercontent.com/core-stack-org/QGIS-Styles/main/Land/LULC0_12class.qml",
+                    "type": "application/xml",
+                    "title": "QGIS Style file",
+                    "roles": [
+                        "metadata"
+                    ]
+                },
+                "thumbnail": {
+                    "href": "https://spatio-temporal-asset-catalog.s3.ap-south-1.amazonaws.com/STAC_output_merged_collection/rajasthan_bhilwara_mandal_land_use_land_cover_raster_2017.png",
+                    "type": "image/png",
+                    "title": "Thumbnail",
+                    "roles": [
+                        "thumbnail"
+                    ]
+                }
+            },
+            "collection": "mandal"
+        },
+        {
+            "type": "Feature",
+            "stac_version": "1.1.0",
+            "stac_extensions": [
+                "https://stac-extensions.github.io/projection/v2.0.0/schema.json",
+                "https://stac-extensions.github.io/classification/v2.0.0/schema.json"
+            ],
+            "id": "rajasthan_bhilwara_mandal_land_use_land_cover_raster_2018",
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [
+                    [
+                        [
+                            74.26677881012685,
+                            25.262961409179653
+                        ],
+                        [
+                            74.26677881012685,
+                            25.665047330351552
+                        ],
+                        [
+                            74.64568819696846,
+                            25.665047330351552
+                        ],
+                        [
+                            74.64568819696846,
+                            25.262961409179653
+                        ],
+                        [
+                            74.26677881012685,
+                            25.262961409179653
+                        ]
+                    ]
+                ]
+            },
+            "bbox": [
+                74.26677881012685,
+                25.262961409179653,
+                74.64568819696846,
+                25.665047330351552
+            ],
+            "properties": {
+                "title": "Land Use Land Cover : 2018",
+                "description": "Land Use Land Cover (LULC) map for India. Novelty of this approach is intra-annual classes for agriculture and water availability aligned to the agriculture seasons of India.\n\nThe Pan India map is available from 2017 onwards at 10m resolution. These are the classes in the current version of LULC:\n1. builtup\n2. water in kharif only\n3. water in kharif and rabi only\n4. water in kharif, rabi and zaid (perennial water)\n5. cropland\n6. trees and forest\n7. barren land\n8. single kharif cropping\n9. single non-kharif cropping\n10. double cropping\n11. tripple cropping\n12. shrubs and scrubs\n\nInput to the model is Dynamic World output, and timeseries data from Landsat-7, Landsat-8, Sentinel-2, Sentinel-1 and MODIS processed using the IndiaSAT methodology. Details of methodology can be found in our technical manual and the codebase on [github](https://github.com/core-stack-org/core-stack-backend/tree/main/computing/lulc).",
+                "gsd": 10.0,
+                "keywords": [
+                    "land use land cover"
+                ],
+                "start_datetime": "2018-07-01T00:00:00Z",
+                "end_datetime": "2019-06-30T00:00:00Z",
+                "proj:code": "EPSG:4326",
+                "proj:shape": [
+                    4476,
+                    4218
+                ],
+                "datetime": "2026-06-10T09:27:46.806170Z"
+            },
+            "links": [
+                {
+                    "rel": "root",
+                    "href": "../../../../../catalog.json",
+                    "type": "application/json",
+                    "title": "CoRE Stack Spatio Temporal Asset Catalog"
+                },
+                {
+                    "rel": "collection",
+                    "href": "../collection.json",
+                    "type": "application/json",
+                    "title": "mandal"
+                },
+                {
+                    "rel": "parent",
+                    "href": "../collection.json",
+                    "type": "application/json",
+                    "title": "mandal"
+                }
+            ],
+            "assets": {
+                "data": {
+                    "href": "http://geoserver:8080/geoserver/LULC_level_3/wcs?service=WCS&version=2.0.1&request=GetCoverage&CoverageId=LULC_level_3:LULC_18_19_bhilwara_mandal_level_3&format=geotiff&compression=LZW",
+                    "type": "image/tiff; application=geotiff",
+                    "title": "Raster Layer",
+                    "classification:classes": [
+                        {
+                            "value": 0,
+                            "name": "clear",
+                            "description": "clear",
+                            "color_hint": "000000"
+                        },
+                        {
+                            "value": 1,
+                            "name": "built_up",
+                            "description": "built_up",
+                            "color_hint": "ff0000"
+                        },
+                        {
+                            "value": 2,
+                            "name": "kharif_water",
+                            "description": "kharif_water",
+                            "color_hint": "74ccf4"
+                        },
+                        {
+                            "value": 3,
+                            "name": "kharif_and_rabi_water",
+                            "description": "kharif_and_rabi_water",
+                            "color_hint": "1ca3ec"
+                        },
+                        {
+                            "value": 4,
+                            "name": "kharif_and_rabi_and_zaid_water",
+                            "description": "kharif_and_rabi_and_zaid_water",
+                            "color_hint": "0f5e9c"
+                        },
+                        {
+                            "value": 5,
+                            "name": "crops",
+                            "description": "crops",
+                            "color_hint": "f1c232"
+                        },
+                        {
+                            "value": 6,
+                            "name": "trees",
+                            "description": "trees",
+                            "color_hint": "38761d"
+                        },
+                        {
+                            "value": 7,
+                            "name": "barren_land",
+                            "description": "barren_land",
+                            "color_hint": "a9a9a9"
+                        },
+                        {
+                            "value": 8,
+                            "name": "single_kharif_cropping",
+                            "description": "single_kharif_cropping",
+                            "color_hint": "bad93e"
+                        },
+                        {
+                            "value": 9,
+                            "name": "single_non-kharif_cropping",
+                            "description": "single_non-kharif_cropping",
+                            "color_hint": "f59d22"
+                        },
+                        {
+                            "value": 10,
+                            "name": "double_cropping",
+                            "description": "double_cropping",
+                            "color_hint": "ff9371"
+                        },
+                        {
+                            "value": 11,
+                            "name": "tripple_or_annual_or_perennial_cropping",
+                            "description": "tripple_or_annual_or_perennial_cropping",
+                            "color_hint": "b3561d"
+                        },
+                        {
+                            "value": 12,
+                            "name": "shrubs_and_scrubs",
+                            "description": "shrubs_and_scrubs",
+                            "color_hint": "a9a9a9"
+                        }
+                    ],
+                    "roles": [
+                        "data"
+                    ]
+                },
+                "style": {
+                    "href": "https://raw.githubusercontent.com/core-stack-org/QGIS-Styles/main/Land/LULC0_12class.qml",
+                    "type": "application/xml",
+                    "title": "QGIS Style file",
+                    "roles": [
+                        "metadata"
+                    ]
+                },
+                "thumbnail": {
+                    "href": "https://spatio-temporal-asset-catalog.s3.ap-south-1.amazonaws.com/STAC_output_merged_collection/rajasthan_bhilwara_mandal_land_use_land_cover_raster_2018.png",
+                    "type": "image/png",
+                    "title": "Thumbnail",
+                    "roles": [
+                        "thumbnail"
+                    ]
+                }
+            },
+            "collection": "mandal"
+        },
+        {
+            "type": "Feature",
+            "stac_version": "1.1.0",
+            "stac_extensions": [
+                "https://stac-extensions.github.io/projection/v2.0.0/schema.json",
+                "https://stac-extensions.github.io/classification/v2.0.0/schema.json"
+            ],
+            "id": "rajasthan_bhilwara_mandal_land_use_land_cover_raster_2017",
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [
+                    [
+                        [
+                            74.26677881012685,
+                            25.262961409179653
+                        ],
+                        [
+                            74.26677881012685,
+                            25.665047330351552
+                        ],
+                        [
+                            74.64568819696846,
+                            25.665047330351552
+                        ],
+                        [
+                            74.64568819696846,
+                            25.262961409179653
+                        ],
+                        [
+                            74.26677881012685,
+                            25.262961409179653
+                        ]
+                    ]
+                ]
+            },
+            "bbox": [
+                74.26677881012685,
+                25.262961409179653,
+                74.64568819696846,
+                25.665047330351552
+            ],
+            "properties": {
+                "title": "Land Use Land Cover : 2017",
+                "description": "Land Use Land Cover (LULC) map for India. Novelty of this approach is intra-annual classes for agriculture and water availability aligned to the agriculture seasons of India.\n\nThe Pan India map is available from 2017 onwards at 10m resolution. These are the classes in the current version of LULC:\n1. builtup\n2. water in kharif only\n3. water in kharif and rabi only\n4. water in kharif, rabi and zaid (perennial water)\n5. cropland\n6. trees and forest\n7. barren land\n8. single kharif cropping\n9. single non-kharif cropping\n10. double cropping\n11. tripple cropping\n12. shrubs and scrubs\n\nInput to the model is Dynamic World output, and timeseries data from Landsat-7, Landsat-8, Sentinel-2, Sentinel-1 and MODIS processed using the IndiaSAT methodology. Details of methodology can be found in our technical manual and the codebase on [github](https://github.com/core-stack-org/core-stack-backend/tree/main/computing/lulc).",
+                "gsd": 10.0,
+                "keywords": [
+                    "land use land cover"
+                ],
+                "start_datetime": "2017-07-01T00:00:00Z",
+                "end_datetime": "2018-06-30T00:00:00Z",
+                "proj:code": "EPSG:4326",
+                "proj:shape": [
+                    4476,
+                    4218
+                ],
+                "datetime": "2026-06-10T09:27:38.337213Z"
+            },
+            "links": [
+                {
+                    "rel": "root",
+                    "href": "../../../../../catalog.json",
+                    "type": "application/json",
+                    "title": "CoRE Stack Spatio Temporal Asset Catalog"
+                },
+                {
+                    "rel": "collection",
+                    "href": "../collection.json",
+                    "type": "application/json",
+                    "title": "mandal"
+                },
+                {
+                    "rel": "parent",
+                    "href": "../collection.json",
+                    "type": "application/json",
+                    "title": "mandal"
+                }
+            ],
+            "assets": {
+                "data": {
+                    "href": "http://geoserver:8080/geoserver/LULC_level_3/wcs?service=WCS&version=2.0.1&request=GetCoverage&CoverageId=LULC_level_3:LULC_17_18_bhilwara_mandal_level_3&format=geotiff&compression=LZW",
+                    "type": "image/tiff; application=geotiff",
+                    "title": "Raster Layer",
+                    "classification:classes": [
+                        {
+                            "value": 0,
+                            "name": "clear",
+                            "description": "clear",
+                            "color_hint": "000000"
+                        },
+                        {
+                            "value": 1,
+                            "name": "built_up",
+                            "description": "built_up",
+                            "color_hint": "ff0000"
+                        },
+                        {
+                            "value": 2,
+                            "name": "kharif_water",
+                            "description": "kharif_water",
+                            "color_hint": "74ccf4"
+                        },
+                        {
+                            "value": 3,
+                            "name": "kharif_and_rabi_water",
+                            "description": "kharif_and_rabi_water",
+                            "color_hint": "1ca3ec"
+                        },
+                        {
+                            "value": 4,
+                            "name": "kharif_and_rabi_and_zaid_water",
+                            "description": "kharif_and_rabi_and_zaid_water",
+                            "color_hint": "0f5e9c"
+                        },
+                        {
+                            "value": 5,
+                            "name": "crops",
+                            "description": "crops",
+                            "color_hint": "f1c232"
+                        },
+                        {
+                            "value": 6,
+                            "name": "trees",
+                            "description": "trees",
+                            "color_hint": "38761d"
+                        },
+                        {
+                            "value": 7,
+                            "name": "barren_land",
+                            "description": "barren_land",
+                            "color_hint": "a9a9a9"
+                        },
+                        {
+                            "value": 8,
+                            "name": "single_kharif_cropping",
+                            "description": "single_kharif_cropping",
+                            "color_hint": "bad93e"
+                        },
+                        {
+                            "value": 9,
+                            "name": "single_non-kharif_cropping",
+                            "description": "single_non-kharif_cropping",
+                            "color_hint": "f59d22"
+                        },
+                        {
+                            "value": 10,
+                            "name": "double_cropping",
+                            "description": "double_cropping",
+                            "color_hint": "ff9371"
+                        },
+                        {
+                            "value": 11,
+                            "name": "tripple_or_annual_or_perennial_cropping",
+                            "description": "tripple_or_annual_or_perennial_cropping",
+                            "color_hint": "b3561d"
+                        },
+                        {
+                            "value": 12,
+                            "name": "shrubs_and_scrubs",
+                            "description": "shrubs_and_scrubs",
+                            "color_hint": "a9a9a9"
+                        }
+                    ],
+                    "roles": [
+                        "data"
+                    ]
+                },
+                "style": {
+                    "href": "https://raw.githubusercontent.com/core-stack-org/QGIS-Styles/main/Land/LULC0_12class.qml",
+                    "type": "application/xml",
+                    "title": "QGIS Style file",
+                    "roles": [
+                        "metadata"
+                    ]
+                },
+                "thumbnail": {
+                    "href": "https://spatio-temporal-asset-catalog.s3.ap-south-1.amazonaws.com/STAC_output_merged_collection/rajasthan_bhilwara_mandal_land_use_land_cover_raster_2017.png",
+                    "type": "image/png",
+                    "title": "Thumbnail",
+                    "roles": [
+                        "thumbnail"
+                    ]
+                }
+            },
+            "collection": "mandal"
+        },
+        {
+            "type": "Feature",
+            "stac_version": "1.1.0",
+            "stac_extensions": [
+                "https://stac-extensions.github.io/projection/v2.0.0/schema.json",
+                "https://stac-extensions.github.io/classification/v2.0.0/schema.json"
+            ],
+            "id": "rajasthan_bhilwara_mandal_land_use_land_cover_raster_2018",
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [
+                    [
+                        [
+                            74.26677881012685,
+                            25.262961409179653
+                        ],
+                        [
+                            74.26677881012685,
+                            25.665047330351552
+                        ],
+                        [
+                            74.64568819696846,
+                            25.665047330351552
+                        ],
+                        [
+                            74.64568819696846,
+                            25.262961409179653
+                        ],
+                        [
+                            74.26677881012685,
+                            25.262961409179653
+                        ]
+                    ]
+                ]
+            },
+            "bbox": [
+                74.26677881012685,
+                25.262961409179653,
+                74.64568819696846,
+                25.665047330351552
+            ],
+            "properties": {
+                "title": "Land Use Land Cover : 2018",
+                "description": "Land Use Land Cover (LULC) map for India. Novelty of this approach is intra-annual classes for agriculture and water availability aligned to the agriculture seasons of India.\n\nThe Pan India map is available from 2017 onwards at 10m resolution. These are the classes in the current version of LULC:\n1. builtup\n2. water in kharif only\n3. water in kharif and rabi only\n4. water in kharif, rabi and zaid (perennial water)\n5. cropland\n6. trees and forest\n7. barren land\n8. single kharif cropping\n9. single non-kharif cropping\n10. double cropping\n11. tripple cropping\n12. shrubs and scrubs\n\nInput to the model is Dynamic World output, and timeseries data from Landsat-7, Landsat-8, Sentinel-2, Sentinel-1 and MODIS processed using the IndiaSAT methodology. Details of methodology can be found in our technical manual and the codebase on [github](https://github.com/core-stack-org/core-stack-backend/tree/main/computing/lulc).",
+                "gsd": 10.0,
+                "keywords": [
+                    "land use land cover"
+                ],
+                "start_datetime": "2018-07-01T00:00:00Z",
+                "end_datetime": "2019-06-30T00:00:00Z",
+                "proj:code": "EPSG:4326",
+                "proj:shape": [
+                    4476,
+                    4218
+                ],
+                "datetime": "2026-06-10T09:27:46.806170Z"
+            },
+            "links": [
+                {
+                    "rel": "root",
+                    "href": "../../../../../catalog.json",
+                    "type": "application/json",
+                    "title": "CoRE Stack Spatio Temporal Asset Catalog"
+                },
+                {
+                    "rel": "collection",
+                    "href": "../collection.json",
+                    "type": "application/json",
+                    "title": "mandal"
+                },
+                {
+                    "rel": "parent",
+                    "href": "../collection.json",
+                    "type": "application/json",
+                    "title": "mandal"
+                }
+            ],
+            "assets": {
+                "data": {
+                    "href": "http://geoserver:8080/geoserver/LULC_level_3/wcs?service=WCS&version=2.0.1&request=GetCoverage&CoverageId=LULC_level_3:LULC_18_19_bhilwara_mandal_level_3&format=geotiff&compression=LZW",
+                    "type": "image/tiff; application=geotiff",
+                    "title": "Raster Layer",
+                    "classification:classes": [
+                        {
+                            "value": 0,
+                            "name": "clear",
+                            "description": "clear",
+                            "color_hint": "000000"
+                        },
+                        {
+                            "value": 1,
+                            "name": "built_up",
+                            "description": "built_up",
+                            "color_hint": "ff0000"
+                        },
+                        {
+                            "value": 2,
+                            "name": "kharif_water",
+                            "description": "kharif_water",
+                            "color_hint": "74ccf4"
+                        },
+                        {
+                            "value": 3,
+                            "name": "kharif_and_rabi_water",
+                            "description": "kharif_and_rabi_water",
+                            "color_hint": "1ca3ec"
+                        },
+                        {
+                            "value": 4,
+                            "name": "kharif_and_rabi_and_zaid_water",
+                            "description": "kharif_and_rabi_and_zaid_water",
+                            "color_hint": "0f5e9c"
+                        },
+                        {
+                            "value": 5,
+                            "name": "crops",
+                            "description": "crops",
+                            "color_hint": "f1c232"
+                        },
+                        {
+                            "value": 6,
+                            "name": "trees",
+                            "description": "trees",
+                            "color_hint": "38761d"
+                        },
+                        {
+                            "value": 7,
+                            "name": "barren_land",
+                            "description": "barren_land",
+                            "color_hint": "a9a9a9"
+                        },
+                        {
+                            "value": 8,
+                            "name": "single_kharif_cropping",
+                            "description": "single_kharif_cropping",
+                            "color_hint": "bad93e"
+                        },
+                        {
+                            "value": 9,
+                            "name": "single_non-kharif_cropping",
+                            "description": "single_non-kharif_cropping",
+                            "color_hint": "f59d22"
+                        },
+                        {
+                            "value": 10,
+                            "name": "double_cropping",
+                            "description": "double_cropping",
+                            "color_hint": "ff9371"
+                        },
+                        {
+                            "value": 11,
+                            "name": "tripple_or_annual_or_perennial_cropping",
+                            "description": "tripple_or_annual_or_perennial_cropping",
+                            "color_hint": "b3561d"
+                        },
+                        {
+                            "value": 12,
+                            "name": "shrubs_and_scrubs",
+                            "description": "shrubs_and_scrubs",
+                            "color_hint": "a9a9a9"
+                        }
+                    ],
+                    "roles": [
+                        "data"
+                    ]
+                },
+                "style": {
+                    "href": "https://raw.githubusercontent.com/core-stack-org/QGIS-Styles/main/Land/LULC0_12class.qml",
+                    "type": "application/xml",
+                    "title": "QGIS Style file",
+                    "roles": [
+                        "metadata"
+                    ]
+                },
+                "thumbnail": {
+                    "href": "https://spatio-temporal-asset-catalog.s3.ap-south-1.amazonaws.com/STAC_output_merged_collection/rajasthan_bhilwara_mandal_land_use_land_cover_raster_2018.png",
+                    "type": "image/png",
+                    "title": "Thumbnail",
+                    "roles": [
+                        "thumbnail"
+                    ]
+                }
+            },
+            "collection": "mandal"
+        }
+    ]
+}

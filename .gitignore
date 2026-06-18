@@ -1,0 +1,14 @@
+.env
+data/
+models/
+*.pth
+*.pt
+*.ckpt
+*.zip
+__pycache__/
+*.py[cod]
+code/venv/
+code/storage/
+.pytest_cache/
+.mypy_cache/
+node_modules/

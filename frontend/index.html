@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tree-Crown Pipeline</title>
+  <style>
+    :root{
+      --paper:#f6f4ec; --card:#fffdf7; --ink:#22281f; --muted:#6f7468;
+      --line:#e4e0d3; --green:#2f6b3f; --green-d:#234e2e; --green-l:#eaf1e7;
+      --warn:#b4791f; --err:#a23b2f; --ok:#2f6b3f;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--paper);color:var(--ink);
+      font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+    h1,h2,h3{font-family:Georgia,"Iowan Old Style","Times New Roman",serif;font-weight:600;letter-spacing:.1px}
+    a{color:var(--green-d)}
+    header.top{border-bottom:1px solid var(--line);background:linear-gradient(#fbfaf4,#f4f1e8)}
+    .wrap{max-width:780px;margin:0 auto;padding:0 20px}
+    header.top .wrap{padding-top:18px;padding-bottom:16px}
+    header.top h1{margin:0;font-size:23px}
+    header.top p{margin:4px 0 0;color:var(--muted);font-style:italic;font-size:14px}
+    main{padding:22px 0 48px}
+    section{background:var(--card);border:1px solid var(--line);border-radius:5px;padding:18px 20px;margin:0 0 16px;
+      box-shadow:0 1px 0 rgba(0,0,0,.02)}
+    section h2{margin:0 0 4px;font-size:16px;display:flex;align-items:baseline;gap:9px}
+    section h2 .n{font-size:12px;color:var(--green);border:1px solid var(--green);border-radius:50%;
+      width:21px;height:21px;display:inline-flex;align-items:center;justify-content:center;flex:none;
+      font-family:Georgia,serif}
+    section .lead{color:var(--muted);font-size:13px;margin:0 0 12px}
+    label{display:block;font-size:12.5px;color:#4a5043;margin:10px 0 3px;font-weight:600}
+    input,select{width:100%;padding:8px 10px;border:1px solid #cfcabb;border-radius:4px;background:#fffefb;
+      font:inherit;color:var(--ink)}
+    input:focus,select:focus{outline:none;border-color:var(--green);box-shadow:0 0 0 3px var(--green-l)}
+    input[type=file]{padding:6px;background:#fbf9f3}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 14px}
+    .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px 14px}
+    @media(max-width:560px){.grid,.grid3{grid-template-columns:1fr}}
+    button{font:inherit;font-weight:600;border:0;border-radius:4px;padding:9px 16px;cursor:pointer;
+      background:var(--green);color:#fff;margin-top:12px;transition:background .15s}
+    button:hover{background:var(--green-d)}
+    button:disabled{opacity:.45;cursor:default}
+    button.ghost{background:transparent;color:var(--green-d);border:1px solid #c7c1b0}
+    button.ghost:hover{background:#f0ede3}
+    button.link{background:none;color:var(--green-d);padding:0;margin:0;text-decoration:underline;font-weight:600}
+    details{margin-top:8px;border-top:1px dashed var(--line);padding-top:6px}
+    summary{cursor:pointer;font-size:13px;color:#4a5043;font-weight:600;padding:4px 0}
+    .muted{color:var(--muted);font-size:12.5px}
+    .ok{color:var(--ok)}.err{color:var(--err)}.warn{color:var(--warn)}
+    .note{font-size:12.5px;margin-top:8px}
+    pre{background:#1c2a20;color:#cfe8d4;padding:11px 12px;border-radius:5px;overflow:auto;
+      font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;max-height:210px}
+    table{width:100%;border-collapse:collapse;font-size:13.5px;margin-top:6px}
+    th,td{border-bottom:1px solid #eceadf;padding:7px 8px;text-align:left}
+    th{font-weight:600;color:#4a5043}
+    .bar{height:7px;background:#e9e6da;border-radius:5px;overflow:hidden;margin:2px 0 5px}
+    .bar>i{display:block;height:100%;width:34%;background:var(--green);border-radius:5px;
+      animation:ind 1.15s ease-in-out infinite}
+    @keyframes ind{0%{transform:translateX(-120%)}100%{transform:translateX(330%)}}
+    .pill{display:inline-block;font-size:11.5px;border:1px solid var(--line);border-radius:20px;
+      padding:1px 9px;color:#4a5043;background:#faf8f1;margin-right:5px}
+    footer{color:var(--muted);font-size:12px;text-align:center;padding:6px 0 30px}
+  </style>
+</head>
+<body>
+  <header class="top">
+    <div class="wrap">
+      <h1>Tree-Crown Species Pipeline</h1>
+    </div>
+  </header>
+
+  <main class="wrap">
+
+    <!-- connection -->
+    <section>
+      <h2><span class="n">0</span> Connection</h2>
+      <div class="grid">
+        <div>
+          <label>API base URL</label>
+          <input id="api" value="http://localhost:8123" />
+        </div>
+        <div>
+          <label>API key <span class="muted">(only if the server sets one)</span></label>
+          <input id="key" type="password" placeholder="X-API-Key" />
+        </div>
+      </div>
+      <button class="ghost" onclick="ping()">Check connection</button>
+      <span id="conn" class="note muted">&nbsp;not checked yet</span>
+    </section>
+
+    <!-- create -->
+    <section>
+      <h2><span class="n">1</span> Name the project</h2>
+      <p class="lead">A unique ID is generated server-side; everything else hangs off it.</p>
+      <label>Project name</label>
+      <input id="pname" placeholder="e.g. North block, June survey" />
+      <button onclick="createProject()">Create project</button>
+      <div id="pinfo" class="note"></div>
+    </section>
+
+    <!-- upload -->
+    <section>
+      <h2><span class="n">2</span> Upload the orthomosaic</h2>
+      <p class="lead">One GeoTIFF per project. It is locked once a run has been analyzed.</p>
+      <input id="ortho" type="file" accept=".tif,.tiff" />
+      <button id="btnUpload" onclick="uploadOrtho()">Upload GeoTIFF</button>
+      <div class="muted" style="margin:10px 0 3px">or fetch from a public Google Drive link (downloads server-side; large files take a while):</div>
+      <input id="driveUrl" placeholder="https://drive.google.com/file/d/.../view" />
+      <button id="btnDrive" onclick="uploadUrl()">Fetch from Drive</button>
+      <div id="lockNote" class="note" style="display:none"></div>
+      <div id="oinfo" class="note"></div>
+    </section>
+
+    <!-- analyze -->
+    <section>
+      <h2><span class="n">3</span> Configure &amp; analyze</h2>
+      <p class="lead">Pick the models and tune the run, then start detection + clustering.</p>
+      <div id="runinfo" class="muted" style="margin-bottom:10px"></div>
+      <div class="grid">
+        <div>
+          <label>Run name <span class="muted">(for your own reference)</span></label>
+          <input id="runname" placeholder="run label" />
+        </div>
+        <div>
+          <label>Source EPSG <span class="muted">(blank = auto-detect)</span></label>
+          <input id="epsg" placeholder="e.g. 32643" />
+        </div>
+        <div>
+          <label>Detector model</label>
+          <select id="modelKey"><option>loading…</option></select>
+        </div>
+        <div>
+          <label>Feature extractor (DINOv2)</label>
+          <select id="backbone"><option>loading…</option></select>
+        </div>
+      </div>
+
+      <details open>
+        <summary>Parameters</summary>
+        <div class="grid3" style="margin-top:8px">
+          <div><label>tile_size</label><input id="p_tile" type="number" value="10" /></div>
+          <div><label>buffer</label><input id="p_buf" type="number" value="10" /></div>
+          <div><label>img_size</label><input id="p_img" type="number" value="224" /></div>
+          <div><label>iou_threshold</label><input id="p_iou" type="number" step="0.01" value="0.9" /></div>
+          <div><label>conf_threshold</label><input id="p_conf" type="number" step="0.01" value="0.85" /></div>
+          <div><label>pca_components</label><input id="p_pca" type="number" value="50" /></div>
+          <div><label>batch_size</label><input id="p_batch" type="number" value="16" /></div>
+          <div style="grid-column:span 2"><label>k_list <span class="muted">(comma-separated)</span></label><input id="klist" value="2,4,6,8,10" /></div>
+        </div>
+      </details>
+
+      <button onclick="analyze()" id="btnAnalyze">Run analysis</button>
+      <button class="link" style="margin-left:12px" onclick="populateModels()">refresh model list</button>
+      <div id="aprog" style="display:none;margin-top:12px">
+        <div class="bar"><i></i></div>
+        <div id="astage" class="muted">starting…</div>
+      </div>
+      <div id="ainfo" class="note"></div>
+    </section>
+
+    <!-- label -->
+    <section>
+      <h2><span class="n">4</span> Label the clusters</h2>
+      <p class="lead">Decide your species names, then assign one to each cluster.</p>
+      <div class="grid">
+        <div><label>Chosen k</label><input id="ck" type="number" placeholder="e.g. 4" /></div>
+        <div><label>Species names <span class="muted">(comma-separated)</span></label><input id="species" placeholder="oak, pine, birch" /></div>
+      </div>
+      <button class="ghost" onclick="buildClusterRows()">Build cluster table</button>
+      <div id="clusterRows"></div>
+      <button onclick="submitLabels()">Submit labels</button>
+      <div id="linfo" class="note"></div>
+    </section>
+
+    <!-- finalize -->
+    <section>
+      <h2><span class="n">5</span> Finalize &amp; export</h2>
+      <p class="lead">Assign species, validate (if ground truth was provided), and write the KMZ + CSVs.</p>
+      <button onclick="finalize()" id="btnFinal">Finalize &amp; export</button>
+      <div id="fprog" style="display:none;margin-top:12px">
+        <div class="bar"><i></i></div>
+        <div id="fstage" class="muted">starting…</div>
+      </div>
+      <div id="results" class="note"></div>
+    </section>
+
+    <section>
+      <h2><span class="n">·</span> Activity log</h2>
+      <pre id="log"></pre>
+    </section>
+
+  </main>
+  <footer>Tree-Crown pipeline &middot; internal tool</footer>
+
+<script>
+// Small hand-rolled client. No framework on purpose — just fetch + the DOM.
+let PID = null;
+const $ = (id) => document.getElementById(id);
+const apiBase = () => $("api").value.replace(/\/$/, "");
+function log(msg){ const p=$("log"); const t=new Date().toLocaleTimeString(); p.textContent += `[${t}] ${msg}\n`; p.scrollTop=p.scrollHeight; }
+function headers(extra){ const h=Object.assign({},extra||{}); const k=$("key").value.trim(); if(k) h["X-API-Key"]=k; return h; }
+
+async function api(path, opts={}){
+  const res = await fetch(apiBase()+path, Object.assign({}, opts, { headers: headers(opts.headers) }));
+  const ct = res.headers.get("content-type")||"";
+  const body = ct.includes("application/json") ? await res.json() : res;
+  if(!res.ok){
+    const msg = (body && body.error) ? `${body.error.code}: ${body.error.message}` : `HTTP ${res.status}`;
+    throw new Error(msg);
+  }
+  return body;
+}
+
+function rememberProject(p){
+  if(p && p.project_id) PID = p.project_id;
+  return p;
+}
+
+function frozenFromProject(p){
+  if(!p) return false;
+  return !(["CREATED","UPLOADED"].includes(p.state)) || (p.current_run||1)>1 || (Array.isArray(p.runs)&&p.runs.length>0);
+}
+async function refreshProject(){
+  let p; try{ p=rememberProject(await api("/api/v1/project")); }catch(e){ return null; }
+  const frozen=frozenFromProject(p);
+  $("ortho").disabled=frozen; $("btnUpload").disabled=frozen;
+  $("driveUrl").disabled=frozen; $("btnDrive").disabled=frozen;
+  const ln=$("lockNote");
+  if(frozen){ ln.style.display="block"; ln.innerHTML='<span class="warn">Dataset locked.</span> The orthomosaic &amp; ground truth can\'t change after the first analysis &mdash; re-runs change parameters &amp; labels only. Start a new project for a different dataset.'; }
+  else { ln.style.display="none"; }
+  const run=p.current_run||1;
+  $("runinfo").innerHTML = run>1
+    ? `Current run: <b>${run}</b>${p.run_name?(" &middot; "+p.run_name):""}. Edit parameters and click <b>Run analysis</b> to open another run on the same dataset.`
+    : "Run 1. After it finishes, edit parameters and click <b>Run analysis</b> again to open run 2 on the same dataset (same ortho).";
+  return p;
+}
+async function ping(){
+  try{ await api("/livez"); $("conn").innerHTML='<span class="ok">connected.</span>'; log("connection OK"); populateModels(); }
+  catch(e){ $("conn").innerHTML='<span class="err">unreachable: '+e.message+'</span>'; log("connection failed: "+e.message); }
+}
+
+async function populateModels(){
+  try{
+    const [dets, bbs] = await Promise.all([ api("/api/v1/detectors"), api("/api/v1/feature-extractors") ]);
+    const dsel=$("modelKey"); dsel.innerHTML="";
+    dets.forEach(d=>{
+      const o=document.createElement("option");
+      o.value=d.key; o.disabled=!d.available;
+      o.textContent=(d.description||d.key)+(d.default?" (default)":"")+(d.available?"":" — weights missing");
+      if(d.default) o.selected=true;
+      dsel.appendChild(o);
+    });
+    const bsel=$("backbone"); bsel.innerHTML="";
+    bbs.forEach(b=>{
+      const o=document.createElement("option");
+      o.value=b.name; o.textContent=(b.description||b.name)+(b.default?" (default)":"");
+      o.dataset.img=b.img_size||224;
+      if(b.default){ o.selected=true; if(b.img_size) $("p_img").value=b.img_size; }
+      bsel.appendChild(o);
+    });
+    bsel.onchange=()=>{ const img=bsel.selectedOptions[0]?.dataset.img; if(img) $("p_img").value=img; };
+    log("loaded "+dets.length+" detectors, "+bbs.length+" feature extractors");
+  }catch(e){
+    $("modelKey").innerHTML='<option value="">(could not load)</option>';
+    $("backbone").innerHTML='<option value="">(could not load)</option>';
+  }
+}
+
+async function createProject(){
+  try{
+    const p = rememberProject(await api("/api/v1/projects",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:$("pname").value})}));
+    PID=p.project_id; $("pinfo").innerHTML='<span class="ok">created</span> &middot; <span class="pill">'+PID+'</span>'; log("project "+PID); refreshProject();
+  }catch(e){ $("pinfo").innerHTML='<span class="err">'+e.message+'</span>'; }
+}
+
+async function uploadOrtho(){
+  if(!PID) return alert("Create a project first");
+  const f=$("ortho").files[0]; if(!f) return alert("Choose a .tif file");
+  $("oinfo").textContent="uploading…";
+  try{
+    const fd=new FormData(); fd.append("file",f);
+    const p=rememberProject(await api("/api/v1/project/orthomosaic",{method:"POST",body:fd}));
+    const o=(p.orthos||[])[0]||{};
+    $("oinfo").innerHTML='<span class="ok">registered</span> &middot; '+(o.filename||"")+` &middot; ${o.width||"?"}×${o.height||"?"} px &middot; ${o.bands||"?"} bands`;
+    log("ortho uploaded"); refreshProject();
+  }catch(e){ $("oinfo").innerHTML='<span class="err">'+e.message+'</span>'; }
+}
+
+async function uploadUrl(){
+  if(!PID) return alert("Create a project first");
+  const url=$("driveUrl").value.trim(); if(!url) return alert("Paste a Google Drive link");
+  $("oinfo").textContent="downloading from Drive (may take a while)…";
+  try{
+    const p=rememberProject(await api("/api/v1/project/orthomosaic/from-url",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({url})}));
+    const o=(p.orthos||[])[0]||{};
+    $("oinfo").innerHTML='<span class="ok">registered</span> &middot; '+(o.filename||"")+` &middot; ${o.width||"?"}×${o.height||"?"} px &middot; ${o.bands||"?"} bands`;
+    log("ortho fetched from Drive"); refreshProject();
+  }catch(e){ $("oinfo").innerHTML='<span class="err">'+e.message+'</span>'; }
+}
+
+const sleep=(ms)=>new Promise(r=>setTimeout(r,ms));
+async function pollState(done,fail,stageEl){
+  while(true){
+    await sleep(3000);
+    let p; try{ p=rememberProject(await api("/api/v1/project"));}catch(e){ continue; }
+    try{ const s=rememberProject(await api("/api/v1/project/runs/status")); if(s.job&&s.job.current_stage) stageEl.textContent="stage: "+s.job.current_stage+"  ("+p.state+")"; }catch{}
+    if(done.includes(p.state)) return p;
+    if(fail.includes(p.state)) throw new Error(p.last_error?p.last_error.message:("state "+p.state));
+  }
+}
+
+function numOrNull(id){ const v=$(id).value.trim(); return v===""?null:Number(v); }
+
+async function analyze(){
+  if(!PID) return alert("Create a project first");
+  $("btnAnalyze").disabled=true; $("aprog").style.display="block"; $("ainfo").textContent="";
+  $("clusterRows").innerHTML=""; $("linfo").textContent=""; $("results").textContent="";
+  try{
+    const klist=$("klist").value.split(",").map(s=>parseInt(s.trim(),10)).filter(n=>!isNaN(n));
+    const body={
+      project_id: PID,
+      run_name: $("runname").value.trim()||null,
+      model_key: $("modelKey").value||null,
+      source_epsg: numOrNull("epsg"),
+      params:{
+        tile_size:+$("p_tile").value, buffer:+$("p_buf").value,
+        iou_threshold:+$("p_iou").value, conf_threshold:+$("p_conf").value,
+        pca_components:+$("p_pca").value, batch_size:+$("p_batch").value,
+        img_size:+$("p_img").value, k_list:klist,
+        model_name:$("backbone").value||undefined
+      }
+    };
+    $("astage").textContent="running analyze request…";
+    const c=rememberProject(await api("/api/v1/project/analyze",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}));
+    $("ainfo").innerHTML='<span class="ok">clustering ready</span> &middot; k available: '+(c.available_k||[]).join(", ")+' &middot; recommended: <b>'+c.recommended_k+'</b>';
+    if(c.recommended_k) $("ck").value=c.recommended_k;
+    log("analyze done"); refreshProject();
+  }catch(e){ $("ainfo").innerHTML='<span class="err">'+e.message+'</span>'; log("analyze failed: "+e.message); }
+  finally{ $("btnAnalyze").disabled=false; $("aprog").style.display="none"; }
+}
+
+function buildClusterRows(){
+  const k=parseInt($("ck").value,10); if(!k||k<1) return alert("Enter a chosen k");
+  const opts=$("species").value.split(",").map(s=>s.trim()).filter(Boolean);
+  let html='<table><tr><th style="width:90px">Cluster</th><th>Species</th></tr>';
+  for(let i=0;i<k;i++){
+    html+=`<tr><td>${i}</td><td><select id="cl_${i}"><option value="">unlabelled</option>`+
+      opts.map(o=>`<option value="${o}">${o}</option>`).join("")+`</select></td></tr>`;
+  }
+  $("clusterRows").innerHTML=html+'</table>';
+}
+
+async function submitLabels(){
+  if(!PID) return alert("Create a project first");
+  const k=parseInt($("ck").value,10); if(!k) return alert("Enter chosen k and build the table");
+  let csv="cluster,species,notes\n";
+  for(let i=0;i<k;i++){ const sel=$("cl_"+i); csv+=`${i},${sel?sel.value:""},\n`; }
+  try{
+    const fd=new FormData(); fd.append("chosen_k",String(k)); fd.append("file",new Blob([csv],{type:"text/csv"}),"labels.csv");
+    const r=rememberProject(await api("/api/v1/project/labels",{method:"POST",body:fd}));
+    $("linfo").innerHTML='<span class="ok">labels saved</span> &middot; '+r.state; log("labels submitted");
+  }catch(e){ $("linfo").innerHTML='<span class="err">'+e.message+'</span>'; }
+}
+
+async function finalize(){
+  if(!PID) return alert("Create a project first");
+  $("btnFinal").disabled=true; $("fprog").style.display="block"; $("results").textContent="";
+  try{
+    const t=rememberProject(await api("/api/v1/project/runs/finalize",{method:"POST"}));
+    log("finalize triggered &middot; mode="+t.mode);
+    await pollState(["COMPLETED"],["FAILED"],$("fstage"));
+    const r=rememberProject(await api("/api/v1/project/results"));
+    const d=r.downloads||{};
+    let html='<span class="ok">completed.</span><div style="margin-top:6px">downloads:</div><ul style="margin:4px 0">';
+    for(const [k,v] of Object.entries(d)) if(v) html+=`<li><a href="${apiBase()}${v}" target="_blank">${k}</a></li>`;
+    html+='</ul>';
+    const dist=r.species_distribution||{};
+    if(Object.keys(dist).length) html+='<div>distribution: '+Object.entries(dist).map(([s,n])=>`${s}=${n}`).join(", ")+'</div>';
+    $("results").innerHTML=html; log("finalize done"); refreshProject();
+  }catch(e){ $("results").innerHTML='<span class="err">'+e.message+'</span>'; log("finalize failed: "+e.message); }
+  finally{ $("btnFinal").disabled=false; $("fprog").style.display="none"; }
+}
+
+// try to load the model lists on first paint (best-effort)
+window.addEventListener("load", populateModels);
+</script>
+</body>
+</html>

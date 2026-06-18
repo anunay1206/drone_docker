@@ -1,0 +1,880 @@
+{
+  "info": {
+    "_postman_id": "ceca6c94-e705-46a8-94b8-981123fa092d",
+    "name": "Tree-Crown \u2014 Full Flow (backend + compute + Airflow)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Exercises the whole pipeline.\n\nARCHITECTURE\n  Browser/Frontend --> our backend  /api/v1/projects/{id}/runs/analyze|finalize  (TRIGGER; returns state/job_id/run_id/mode)\n  our backend --> Airflow REST       /api/v1/dags/{dag}/dagRuns                   (starts the DAG)\n  Airflow DAG --> our backend         /api/v1/compute/analyze|finalize            (COMPUTE; returns asset_id/version/hosting_platform)\n\nSo asset_id/version/hosting_platform come ONLY from /compute/* (folder 3), not from the /runs/* trigger.\n\nRECOMMENDED ORDER\n  0 Health -> 1 Setup (create + upload ortho) -> then either:\n    A) Trigger path (folder 2): runs/analyze, poll runs/status, GET clustering, submit labels (folder 4), runs/finalize, results; OR\n    B) Compute path (folder 3): call /compute/analyze and /compute/finalize directly to see the STACD response the DAG receives.\n\nNOTE: /compute/* run the REAL pipeline synchronously (minutes). The project must have an ortho (for analyze) and submitted labels + LABELS_SUBMITTED state (for finalize).\nSet variables under the collection's Variables tab. apiKey/computeToken can be blank if the server has no auth set."
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8123"
+    },
+    {
+      "key": "apiKey",
+      "value": ""
+    },
+    {
+      "key": "computeToken",
+      "value": ""
+    },
+    {
+      "key": "projectId",
+      "value": ""
+    },
+    {
+      "key": "run",
+      "value": "1"
+    },
+    {
+      "key": "chosenK",
+      "value": "2"
+    },
+    {
+      "key": "driveUrl",
+      "value": ""
+    },
+    {
+      "key": "airflowUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "airflowUser",
+      "value": "admin"
+    },
+    {
+      "key": "airflowPass",
+      "value": ""
+    },
+    {
+      "key": "analyzeDagId",
+      "value": "drone_analyze"
+    },
+    {
+      "key": "finalizeDagId",
+      "value": "drone_finalize"
+    }
+  ],
+  "item": [
+    {
+      "name": "0 \u00b7 Health & catalog",
+      "item": [
+        {
+          "name": "livez",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/livez",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "livez"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', ()=>pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "detectors",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{apiKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/detectors",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "detectors"
+              ]
+            },
+            "description": "Lists detectors; 'available:true' means the .pth weight is mounted."
+          },
+          "response": []
+        },
+        {
+          "name": "feature-extractors",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{apiKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/feature-extractors",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "feature-extractors"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "1 \u00b7 Project setup",
+      "item": [
+        {
+          "name": "create project",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{apiKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/projects",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "projects"
+              ]
+            },
+            "description": "Creates a project; saves its UUID to {{projectId}}.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman flow test\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 created', ()=>pm.response.to.have.status(201));",
+                  "var j=pm.response.json();",
+                  "pm.collectionVariables.set('projectId', j.project_id);",
+                  "console.log('projectId =', j.project_id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "get project",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{apiKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/projects/{{projectId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "projects",
+                "{{projectId}}"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var j=pm.response.json();",
+                  "console.log('state =', j.state, '| current_run =', j.current_run);",
+                  "pm.collectionVariables.set('run', String(j.current_run||1));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "upload orthomosaic (file)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{apiKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/projects/{{projectId}}/orthomosaic",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "projects",
+                "{{projectId}}",
+                "orthomosaic"
+              ]
+            },
+            "description": "Pick a GeoTIFF in the Body tab. Locked (423) once the project has been analyzed.",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": [],
+                  "description": "Attach a .tif/.tiff GeoTIFF"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "upload orthomosaic (Google Drive URL)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{apiKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/projects/{{projectId}}/orthomosaic/from-url",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "projects",
+                "{{projectId}}",
+                "orthomosaic",
+                "from-url"
+              ]
+            },
+            "description": "Alternative to file upload: set {{driveUrl}} to a public Drive link.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"url\": \"{{driveUrl}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "upload ground-truth (zip, optional)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{apiKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/projects/{{projectId}}/ground-truth",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "projects",
+                "{{projectId}}",
+                "ground-truth"
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": [],
+                  "description": "Attach a .zip of <species>/*.tif folders (enables validation)"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "2 \u00b7 Analyze via trigger (frontend path)",
+      "item": [
+        {
+          "name": "runs/analyze (trigger)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{apiKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/projects/{{projectId}}/runs/analyze",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "projects",
+                "{{projectId}}",
+                "runs",
+                "analyze"
+              ]
+            },
+            "description": "Starts analysis. mode=airflow if TCP_AIRFLOW_BASE_URL is set (backend calls the DAG), else local (in-process). Returns state/job_id/run_id \u2014 NO asset_id.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"run_name\": \"postman-run\",\n  \"model_key\": null,\n  \"source_epsg\": null,\n  \"params\": {\n    \"tile_size\": 10,\n    \"buffer\": 10,\n    \"iou_threshold\": 0.9,\n    \"conf_threshold\": 0.85,\n    \"pca_components\": 50,\n    \"batch_size\": 16,\n    \"img_size\": 224,\n    \"k_list\": [\n      2,\n      4,\n      6,\n      8,\n      10\n    ]\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', ()=>pm.response.to.have.status(200));",
+                  "var j=pm.response.json(); console.log('mode =', j.mode, '| run_id =', j.run_id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "runs/status (poll)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{apiKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/projects/{{projectId}}/runs/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "projects",
+                "{{projectId}}",
+                "runs",
+                "status"
+              ]
+            },
+            "description": "Poll repeatedly (or use the Collection Runner) \u2014 shows the live job stage + progress while analysis runs."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var j=pm.response.json(); console.log('state =', j.state, '| stage =', j.job && j.job.current_stage);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "clustering (after AWAITING_LABELS)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{apiKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/projects/{{projectId}}/clustering",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "projects",
+                "{{projectId}}",
+                "clustering"
+              ]
+            },
+            "description": "Available once state=AWAITING_LABELS. Saves recommended_k to {{chosenK}}."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if(pm.response.code===200){var j=pm.response.json();",
+                  " if(j.recommended_k) pm.collectionVariables.set('chosenK', String(j.recommended_k));",
+                  " console.log('available_k =', j.available_k, '| recommended =', j.recommended_k);}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3 \u00b7 Compute (what Airflow calls) \u2014 returns asset_id",
+      "item": [
+        {
+          "name": "compute/analyze",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Service-Token",
+                "value": "{{computeToken}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/compute/analyze",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "compute",
+                "analyze"
+              ]
+            },
+            "description": "The DAG's analyze callback. Runs detection+clustering synchronously. 200 -> {asset_id, version, hosting_platform}.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"execution_id\": \"{{$guid}}\",\n  \"project_id\": \"{{projectId}}\",\n  \"run\": \"{{run}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', ()=>pm.response.to.have.status(200));",
+                  "var j=pm.response.json();",
+                  "pm.test('has asset_id', ()=>pm.expect(j).to.have.property('asset_id'));",
+                  "pm.test('has version', ()=>pm.expect(j).to.have.property('version'));",
+                  "pm.test('has hosting_platform', ()=>pm.expect(j).to.have.property('hosting_platform'));",
+                  "console.log('asset_id =', j.asset_id, '| version =', j.version, '| hosting_platform =', j.hosting_platform);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "compute/finalize",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Service-Token",
+                "value": "{{computeToken}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/compute/finalize",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "compute",
+                "finalize"
+              ]
+            },
+            "description": "The DAG's finalize callback. Needs labels submitted (folder 4) + state LABELS_SUBMITTED. 200 -> {asset_id (KMZ), version, hosting_platform}.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"execution_id\": \"{{$guid}}\",\n  \"project_id\": \"{{projectId}}\",\n  \"run\": \"{{run}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var j=pm.response.json(); console.log('status', pm.response.code, JSON.stringify(j));",
+                  "if(pm.response.code===200){pm.test('has asset_id',()=>pm.expect(j).to.have.property('asset_id'));}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "4 \u00b7 Labels + finalize + results",
+      "item": [
+        {
+          "name": "submit labels",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{apiKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/projects/{{projectId}}/labels",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "projects",
+                "{{projectId}}",
+                "labels"
+              ]
+            },
+            "description": "Closes the human gate -> state LABELS_SUBMITTED. CSV columns: cluster,species,notes.",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "chosen_k",
+                  "value": "{{chosenK}}",
+                  "type": "text"
+                },
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": [],
+                  "description": "Attach labels.csv with header: cluster,species,notes (one row per cluster 0..k-1)"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "runs/finalize (trigger)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{apiKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/projects/{{projectId}}/runs/finalize",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "projects",
+                "{{projectId}}",
+                "runs",
+                "finalize"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', ()=>pm.response.to.have.status(200));",
+                  "var j=pm.response.json(); console.log('mode =', j.mode);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "results",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{apiKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/projects/{{projectId}}/results",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "projects",
+                "{{projectId}}",
+                "results"
+              ]
+            },
+            "description": "Final summary + download links (available once COMPLETED)."
+          },
+          "response": []
+        },
+        {
+          "name": "runs (history/comparison)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{apiKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/projects/{{projectId}}/runs",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "projects",
+                "{{projectId}}",
+                "runs"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "run results (by run #)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{apiKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/projects/{{projectId}}/runs/{{run}}/results",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "projects",
+                "{{projectId}}",
+                "runs",
+                "{{run}}",
+                "results"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "5 \u00b7 Airflow REST (optional) \u2014 backend\u2192Airflow step",
+      "item": [
+        {
+          "name": "trigger drone_analyze DAG",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{airflowUrl}}/api/v1/dags/{{analyzeDagId}}/dagRuns",
+              "host": [
+                "{{airflowUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "dags",
+                "{{analyzeDagId}}",
+                "dagRuns"
+              ]
+            },
+            "description": "What our backend does internally. Requires Airflow basic-auth (set on this request's Authorization tab to {{airflowUser}}/{{airflowPass}}). The DAG will then POST /compute/analyze back to the backend.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"conf\": {\n    \"project_id\": \"{{projectId}}\",\n    \"run\": 1\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{airflowUser}}"
+                },
+                {
+                  "key": "password",
+                  "value": "{{airflowPass}}"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "trigger drone_finalize DAG",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{airflowUrl}}/api/v1/dags/{{finalizeDagId}}/dagRuns",
+              "host": [
+                "{{airflowUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "dags",
+                "{{finalizeDagId}}",
+                "dagRuns"
+              ]
+            },
+            "description": "Same, for finalize. Needs basic-auth.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"conf\": {\n    \"project_id\": \"{{projectId}}\",\n    \"run\": 1\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{airflowUser}}"
+                },
+                {
+                  "key": "password",
+                  "value": "{{airflowPass}}"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
