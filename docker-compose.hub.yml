@@ -10,7 +10,7 @@
 # ════════════════════════════════════════════════════════════════════════
 services:
   api:
-    image: ${IMAGE_API:-CHANGEME/treecrown-workstation:latest}
+    image: ${IMAGE_API:-uavforaliens/treecrown-workstation:latest}
     pull_policy: always
     restart: unless-stopped
     env_file: .env
@@ -31,7 +31,7 @@ services:
       retries: 3
 
   frontend:
-    image: ${IMAGE_FRONTEND:-CHANGEME/treecrown-frontend:latest}
+    image: ${IMAGE_FRONTEND:-anunay12/treecrown-frontend:latest}
     pull_policy: always
     restart: unless-stopped
     ports:
