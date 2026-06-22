@@ -44,6 +44,7 @@ class AnalyzeTrigger(BaseModel):
     model_key: str | None = None
     source_epsg: int | None = None
     params: dict | None = None
+    execution_id: str | None = None  # set by Airflow callbacks — triggers direct execution
 
 
 class FinalizeTrigger(BaseModel):

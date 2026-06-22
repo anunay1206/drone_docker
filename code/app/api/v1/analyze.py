@@ -20,6 +20,7 @@ from app.api.v1.runs import _apply_run_config, _validate_trigger_body
 from app.db import models
 from app.db.session import get_db
 from app.schemas.project import AnalyzeTrigger
+from app.services.airflow_client import airflow_enabled, get_dag_run_state, trigger_drone_dag
 from app.services.assets import analyze_asset_fields
 from app.workers.tasks import job_a_analyze
 
@@ -51,18 +52,86 @@ def drone_api(
             "message": "project_id and action are required in the request body",
             "project_id": getattr(body, "project_id", None),
         })
-    if body.action == "finalize":
-        from app.api.v1.finalize import run_finalize
-        project = resolve_project(db, user, body.project_id)
-        return run_finalize(request, body, project, db, user, idempotency_key)
-    if body.action != "analyze":
+    if body.action not in ("analyze", "finalize"):
         raise HTTPException(400, {
             "code": "BAD_REQUEST",
             "message": "action must be 'analyze' or 'finalize'",
             "project_id": body.project_id,
         })
+
+    # ── Route through Airflow when configured ──────────────────────────
+    # Skip Airflow if execution_id is present — Airflow is calling us back
+    # to run the pipeline directly (not trigger again).
+    if airflow_enabled() and not body.execution_id:
+        conf = {
+            "project_id": body.project_id,
+            "action": body.action,
+            "execution_type": "fullexec",
+        }
+        if body.params:
+            conf["params"] = body.params
+        if body.model_key:
+            conf["model_key"] = body.model_key
+        if body.source_epsg:
+            conf["source_epsg"] = body.source_epsg
+        if body.run_name:
+            conf["run_name"] = body.run_name
+
+        try:
+            dag_run_id = trigger_drone_dag(conf)
+        except RuntimeError as exc:
+            raise HTTPException(502, {"code": "AIRFLOW_TRIGGER_FAILED", "message": str(exc)})
+
+        # Return immediately — frontend will poll /drone_status/{dag_run_id}
+        return {
+            "status": "started",
+            "dag_run_id": dag_run_id,
+            "project_id": body.project_id,
+            "action": body.action,
+        }
+
+    # ── Fall back to direct execution when Airflow is not configured ───
     project = resolve_project(db, user, body.project_id)
+    if body.action == "finalize":
+        from app.api.v1.finalize import run_finalize
+        return run_finalize(request, body, project, db, user, idempotency_key)
     return run_analyze(request, body, project, db, user, idempotency_key)
+
+
+@router.get("/project/drone_status/{dag_run_id}")
+def drone_status(
+    request: Request,
+    dag_run_id: str,
+    action: str,
+    project_id: str,
+    db: Session = Depends(get_db),
+    user: str = Depends(require_api_key),
+    _svc: str = Depends(require_service_token),
+):
+    try:
+        state = get_dag_run_state(dag_run_id)
+    except RuntimeError as exc:
+        raise HTTPException(502, {"code": "AIRFLOW_POLL_FAILED", "message": str(exc)})
+
+    if state == "success":
+        db.expire_all()
+        project = resolve_project(db, user, project_id)
+        if action == "analyze":
+            payload = _analyze_payload(request, project)
+        else:
+            from app.api.v1.results import build_results_payload
+            payload = build_results_payload(project)
+        payload["state"] = "success"
+        return payload
+
+    if state == "failed":
+        raise HTTPException(500, {
+            "code": "COMPUTE_FAILED",
+            "message": "Airflow DAG failed",
+            "project_id": project_id,
+        })
+
+    return {"state": state, "dag_run_id": dag_run_id}
 
 
 @router.post("/projects/{project_id}/analyze")

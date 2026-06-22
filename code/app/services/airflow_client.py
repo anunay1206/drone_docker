@@ -53,3 +53,27 @@ def trigger_dag(dag_id: str, conf: dict, timeout: int = 30) -> str:
         raise RuntimeError(f"Airflow returned {e.code} for {dag_id}: {detail}") from e
     except urllib.error.URLError as e:
         raise RuntimeError(f"Could not reach Airflow at {base}: {e.reason}") from e
+
+
+def trigger_drone_dag(conf: dict, timeout: int = 30) -> str:
+    """Trigger the unified drone_pipeline DAG and return dag_run_id."""
+    return trigger_dag(settings.drone_dag_id, conf, timeout=timeout)
+
+
+def get_dag_run_state(dag_run_id: str, timeout: int = 10) -> str:
+    """Return current state of a DAG run (queued/running/success/failed)."""
+    base = settings.airflow_base_url.rstrip("/")
+    dag_id = settings.drone_dag_id
+    url = f"{base}/api/v1/dags/{dag_id}/dagRuns/{dag_run_id}"
+
+    headers = {"Content-Type": "application/json", **_auth_header()}
+    req = urllib.request.Request(url, method="GET", headers=headers)
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            data = json.loads(resp.read().decode() or "{}")
+        return data.get("state", "unknown")
+    except urllib.error.HTTPError as e:
+        detail = e.read().decode(errors="replace")[:500]
+        raise RuntimeError(f"Airflow returned {e.code} polling {dag_run_id}: {detail}") from e
+    except urllib.error.URLError as e:
+        raise RuntimeError(f"Could not reach Airflow at {base}: {e.reason}") from e

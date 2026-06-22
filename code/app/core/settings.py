@@ -35,6 +35,7 @@ class Settings(BaseSettings):
     airflow_auth_token: str | None = None    # OR a bearer token for the Airflow REST API
     analyze_dag_id: str = "drone_analyze"
     finalize_dag_id: str = "drone_finalize"
+    drone_dag_id: str = "drone_pipeline"    # unified DAG used by drone_api
 
     # ── model registry ─────────────────────────────────────────────────
     default_model_key: str = "urban_cambridge"
