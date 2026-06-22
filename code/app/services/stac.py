@@ -236,17 +236,6 @@ def build_stac_item(project, chosen_k: int | None = None, run: int | None = None
             "title": "Validation confusion matrix",
             "roles": ["overview"],
         }
-    # Detection overlay (served by the clustering router) as the thumbnail.
-    det = paths["detectree"]
-    if os.path.isdir(det) and any(
-        os.path.exists(os.path.join(det, s, "overlay.png")) for s in os.listdir(det)
-    ):
-        assets["thumbnail"] = {
-            "href": _href("/api/v1/project/detection/overlay.png"),
-            "type": "image/png",
-            "title": "Detection overlay",
-            "roles": ["thumbnail"],
-        }
     assets["style"] = {
         "href": "https://raw.githubusercontent.com/core-stack-org/QGIS-Styles/main/Land/LULC0_12class.qml",
         "type": "application/xml",
