@@ -36,6 +36,7 @@ class Project(Base):
     # User-facing display name for the current run (folders stay run_<n> on disk).
     run_name: Mapped[str | None] = mapped_column(String, nullable=True)
     runs: Mapped[list | None] = mapped_column(JSON, default=list)
+    share_hash: Mapped[str | None] = mapped_column(String, nullable=True)
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(

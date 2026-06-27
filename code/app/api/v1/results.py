@@ -44,12 +44,22 @@ def build_results_payload(project) -> dict:
                 distribution[sp] = distribution.get(sp, 0) + 1
 
     base = "/api/v1/project/results"
+    files_url = None
+    try:
+        from app.services.filebrowser_client import filebrowser_enabled, share_url
+        hash_ = getattr(project, "share_hash", None)
+        if filebrowser_enabled() and hash_:
+            files_url = share_url(hash_)
+    except Exception:
+        pass
+
     payload = {
         "project_id": project.id,
         "state": project.state,
         "run": _run(project),
         "species_distribution": distribution,
         "validation": _read_validation(p),
+        "files_url": files_url,
         "downloads": {
             "kmz": f"{base}/kmz" if os.path.exists(kmz) else None,
             "crown_master_csv": f"{base}/crown-master.csv" if os.path.exists(master) else None,

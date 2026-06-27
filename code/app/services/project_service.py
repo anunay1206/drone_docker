@@ -50,6 +50,19 @@ def _last_error(project) -> dict | None:
     return {"code": "COMPUTE_FAILED", "stage": stage, "message": project.error}
 
 
+def _project_files_url(project) -> str | None:
+    hash_ = getattr(project, "share_hash", None)
+    if not hash_:
+        return None
+    try:
+        from app.services.filebrowser_client import filebrowser_enabled, share_url
+        if filebrowser_enabled():
+            return share_url(hash_)
+    except Exception:
+        pass
+    return None
+
+
 def serialize_project(project) -> ProjectOut:
     """ORM Project -> API response model."""
     return ProjectOut(
@@ -67,6 +80,7 @@ def serialize_project(project) -> ProjectOut:
         orthos=[OrthoOut.model_validate(o) for o in project.orthos],
         error=project.error,
         last_error=_last_error(project),
+        files_url=_project_files_url(project),
         created_at=project.created_at,
         updated_at=project.updated_at,
     )

@@ -31,9 +31,23 @@ router = APIRouter()
 _ANALYZE_OK = {"UPLOADED", "ANALYZING", "AWAITING_LABELS", "LABELS_SUBMITTED", "COMPLETED", "FAILED"}
 
 
+def _files_url(project) -> str | None:
+    hash_ = getattr(project, "share_hash", None)
+    if not hash_:
+        return None
+    try:
+        from app.services.filebrowser_client import filebrowser_enabled, share_url
+        if filebrowser_enabled():
+            return share_url(hash_)
+    except Exception:
+        pass
+    return None
+
+
 def _analyze_payload(request: Request, project) -> dict:
     payload = build_clustering_payload(request, project)
     payload.update(analyze_asset_fields(project))
+    payload["files_url"] = _files_url(project)
     return payload
 
 

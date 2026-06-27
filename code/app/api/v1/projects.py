@@ -69,6 +69,19 @@ def create_project(
     db.commit()
     db.refresh(project)
     ensure_project_dirs(project.id, project.current_run)
+
+    # Create a permanent FileBrowser share for this project's output folder.
+    # Failure is non-fatal — project creation succeeds either way.
+    try:
+        from app.services.filebrowser_client import create_project_share, filebrowser_enabled
+        if filebrowser_enabled():
+            project.share_hash = create_project_share(project.id)
+            db.add(project)
+            db.commit()
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).warning("FileBrowser share creation failed: %s", exc)
+
     return serialize_project(project)
 
 

@@ -96,7 +96,7 @@ class ProjectOut(BaseModel):
     runs: list = []
     orthos: list[OrthoOut] = []
     error: str | None = None
-    # Structured failure info when state == FAILED (v4 section 8.1): {code, stage, message}.
     last_error: dict | None = None
+    files_url: str | None = None
     created_at: datetime
     updated_at: datetime

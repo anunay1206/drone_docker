@@ -55,6 +55,14 @@ class Settings(BaseSettings):
     # header ``X-Service-Token: <compute_token>`` (v4 §9.2).
     compute_token: str | None = None
 
+    # ── FileBrowser (optional) ─────────────────────────────────────────
+    # When set, a public share is created for each project folder at creation
+    # time and the share URL is returned in analyze / finalize responses.
+    filebrowser_base_url: str = ""        # internal URL the backend uses to call FileBrowser API
+    filebrowser_public_url: str = ""      # URL shown to the user in the browser (defaults to base_url)
+    filebrowser_username: str = "admin"
+    filebrowser_password: str = ""
+
     # ── STAC ───────────────────────────────────────────────────────────
     # Public base URL used to make STAC Item asset/link hrefs absolute
     # (e.g. https://api.example.com). Leave blank to emit relative hrefs.

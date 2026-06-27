@@ -269,7 +269,10 @@ async function populateModels(){
 async function createProject(){
   try{
     const p = rememberProject(await api("/api/v1/projects",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:$("pname").value})}));
-    PID=p.project_id; $("pinfo").innerHTML='<span class="ok">created</span> &middot; <span class="pill">'+PID+'</span>'; log("project "+PID); refreshProject();
+    PID=p.project_id;
+    let phtml='<span class="ok">created</span> &middot; <span class="pill">'+PID+'</span>';
+    if(p.files_url) phtml+=' &middot; <a href="'+p.files_url+'" target="_blank">Browse output files →</a>';
+    $("pinfo").innerHTML=phtml; log("project "+PID); refreshProject();
   }catch(e){ $("pinfo").innerHTML='<span class="err">'+e.message+'</span>'; }
 }
 
@@ -349,7 +352,9 @@ async function analyze(){
     } else {
       c=rememberProject(triggered);
     }
-    $("ainfo").innerHTML='<span class="ok">clustering ready</span> &middot; k available: '+(c.available_k||[]).join(", ")+' &middot; recommended: <b>'+c.recommended_k+'</b>';
+    let ahtml='<span class="ok">clustering ready</span> &middot; k available: '+(c.available_k||[]).join(", ")+' &middot; recommended: <b>'+c.recommended_k+'</b>';
+    if(c.files_url) ahtml+=` &middot; <a href="${c.files_url}" target="_blank">Browse output files →</a>`;
+    $("ainfo").innerHTML=ahtml;
     if(c.recommended_k) $("ck").value=c.recommended_k;
     log("analyze done"); refreshProject();
   }catch(e){ $("ainfo").innerHTML='<span class="err">'+e.message+'</span>'; log("analyze failed: "+e.message); }
@@ -402,7 +407,9 @@ async function finalize(){
       r=rememberProject(triggered);
     }
     const d=r.downloads||{};
-    let html='<span class="ok">completed.</span><div style="margin-top:6px">downloads:</div><ul style="margin:4px 0">';
+    let html='<span class="ok">completed.</span>';
+    if(r.files_url) html+=` &middot; <a href="${r.files_url}" target="_blank"><b>Browse all output files →</b></a>`;
+    html+='<div style="margin-top:6px">downloads:</div><ul style="margin:4px 0">';
     for(const [k,v] of Object.entries(d)) if(v) html+=`<li><a href="${apiBase()}${v}" target="_blank">${k}</a></li>`;
     html+='</ul>';
     const dist=r.species_distribution||{};
