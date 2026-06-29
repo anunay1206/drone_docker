@@ -9,6 +9,7 @@ __pycache__/
 *.py[cod]
 code/venv/
 code/storage/
+code/predictions/
 .pytest_cache/
 .mypy_cache/
 node_modules/
