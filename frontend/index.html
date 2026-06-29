@@ -20,10 +20,16 @@
     header.top .wrap{padding-top:18px;padding-bottom:16px}
     header.top h1{margin:0;font-size:23px}
     header.top p{margin:4px 0 0;color:var(--muted);font-style:italic;font-size:14px}
-    main{padding:22px 0 48px}
+
+    /* ── two-column page layout ── */
+    .page-layout{max-width:1180px;margin:0 auto;padding:22px 20px 48px;display:flex;gap:26px;align-items:flex-start}
+    .pipeline-col{flex:1;min-width:0}
+    .faq-col{width:298px;flex-shrink:0;position:sticky;top:20px;max-height:calc(100vh - 40px);overflow-y:auto}
+    @media(max-width:860px){.page-layout{flex-direction:column}.faq-col{width:100%;position:static;max-height:none}}
+
     section{background:var(--card);border:1px solid var(--line);border-radius:5px;padding:18px 20px;margin:0 0 16px;
       box-shadow:0 1px 0 rgba(0,0,0,.02)}
-    section h2{margin:0 0 4px;font-size:16px;display:flex;align-items:baseline;gap:9px}
+    section h2{margin:0 0 4px;font-size:16px;display:flex;align-items:center;gap:9px}
     section h2 .n{font-size:12px;color:var(--green);border:1px solid var(--green);border-radius:50%;
       width:21px;height:21px;display:inline-flex;align-items:center;justify-content:center;flex:none;
       font-family:Georgia,serif}
@@ -60,6 +66,48 @@
     .pill{display:inline-block;font-size:11.5px;border:1px solid var(--line);border-radius:20px;
       padding:1px 9px;color:#4a5043;background:#faf8f1;margin-right:5px}
     footer{color:var(--muted);font-size:12px;text-align:center;padding:6px 0 30px}
+
+    /* ── info button + tooltip ── */
+    .info-wrap{position:relative;display:inline-flex;align-items:center;flex-shrink:0}
+    .info-btn{display:inline-flex;align-items:center;justify-content:center;width:17px;height:17px;
+      border-radius:50%;background:#a8b0a0;color:#fff;font-size:10px;font-family:Georgia,serif;
+      font-style:italic;cursor:help;user-select:none;line-height:1;border:0;padding:0;margin:0;
+      transition:background .15s;flex-shrink:0}
+    .info-btn:hover{background:var(--green)}
+    .step-tip{display:none;position:absolute;left:22px;top:50%;transform:translateY(-50%);
+      background:#1c2a20;color:#cfe8d4;padding:11px 14px;border-radius:5px;font-size:12.5px;
+      line-height:1.55;width:290px;z-index:300;
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+      font-style:normal;font-weight:400;box-shadow:0 4px 20px rgba(0,0,0,.3)}
+    .step-tip b{color:#9dd4a8}
+    .step-tip ul{margin:5px 0 0;padding-left:16px}
+    .step-tip li{margin:2px 0}
+    .info-wrap:hover .step-tip{display:block}
+    .step-tip::before{content:'';position:absolute;right:100%;top:50%;transform:translateY(-50%);
+      border:6px solid transparent;border-right-color:#1c2a20}
+
+    /* ── FAQ sidebar ── */
+    .faq-card{background:var(--card);border:1px solid var(--line);border-radius:5px;
+      box-shadow:0 1px 0 rgba(0,0,0,.02);overflow:hidden}
+    .faq-header{background:linear-gradient(#f0eddf,#e8e4d5);border-bottom:1px solid var(--line);
+      padding:13px 16px}
+    .faq-header h3{margin:0;font-size:14px;color:var(--green-d)}
+    .faq-header p{margin:3px 0 0;font-size:12px;color:var(--muted)}
+    .faq-item{border-bottom:1px solid var(--line)}
+    .faq-item:last-child{border-bottom:0}
+    .faq-item summary{list-style:none;padding:10px 16px;font-size:13px;font-weight:600;
+      color:#3a4a37;cursor:pointer;display:flex;justify-content:space-between;align-items:center;
+      user-select:none}
+    .faq-item summary::-webkit-details-marker{display:none}
+    .faq-item summary::after{content:'﹢';font-size:14px;color:var(--muted);flex-shrink:0;margin-left:6px}
+    .faq-item[open] summary::after{content:'﹣'}
+    .faq-item summary:hover{background:#f5f2e8}
+    .faq-body{padding:2px 16px 12px;font-size:12.5px;color:#3a4a37;line-height:1.6}
+    .faq-body ul{margin:4px 0;padding-left:16px}
+    .faq-body li{margin:3px 0}
+    .faq-body strong{color:var(--green-d)}
+    .faq-body .tag{display:inline-block;background:var(--green-l);color:var(--green-d);
+      border-radius:3px;padding:0 5px;font-size:11.5px;font-weight:600;margin:1px 2px}
   </style>
 </head>
 <body>
@@ -69,127 +117,324 @@
     </div>
   </header>
 
-  <main class="wrap">
+  <div class="page-layout">
 
-    <!-- connection -->
-    <section>
-      <h2><span class="n">0</span> Connection</h2>
-      <div class="grid">
-        <div>
-          <label>API base URL</label>
-          <input id="api" value="http://localhost:8123" />
+    <!-- ── PIPELINE STEPS (left column) ── -->
+    <main class="pipeline-col">
+
+      <!-- connection -->
+      <section>
+        <h2>
+          <span class="n">0</span> Connection
+          <span class="info-wrap">
+            <button class="info-btn" tabindex="-1">i</button>
+            <div class="step-tip">
+              Enter the server URL where the API is running (default <b>http://localhost:8123</b>).<br><br>
+              The <b>API key</b> is optional — only needed if the server is configured with one.<br><br>
+              Click <b>Check connection</b> to verify the server is reachable and auto-load available detector models.
+            </div>
+          </span>
+        </h2>
+        <div class="grid">
+          <div>
+            <label>API base URL</label>
+            <input id="api" value="http://localhost:8123" />
+          </div>
+          <div>
+            <label>API key <span class="muted">(only if the server sets one)</span></label>
+            <input id="key" type="password" placeholder="X-API-Key" />
+          </div>
         </div>
-        <div>
-          <label>API key <span class="muted">(only if the server sets one)</span></label>
-          <input id="key" type="password" placeholder="X-API-Key" />
+        <button class="ghost" onclick="ping()">Check connection</button>
+        <span id="conn" class="note muted">&nbsp;not checked yet</span>
+      </section>
+
+      <!-- create -->
+      <section>
+        <h2>
+          <span class="n">1</span> Name the project
+          <span class="info-wrap">
+            <button class="info-btn" tabindex="-1">i</button>
+            <div class="step-tip">
+              Give your survey a descriptive name (e.g. <b>North block, June 2024</b>).<br><br>
+              The server generates a unique <b>Project ID</b> — all uploads, runs and outputs are stored under it.<br><br>
+              After creation a <b>Browse output files</b> link may appear if FileBrowser is configured, letting you monitor files as the pipeline generates them.
+            </div>
+          </span>
+        </h2>
+        <p class="lead">A unique ID is generated server-side; everything else hangs off it.</p>
+        <label>Project name</label>
+        <input id="pname" placeholder="e.g. North block, June survey" />
+        <button onclick="createProject()">Create project</button>
+        <div id="pinfo" class="note"></div>
+      </section>
+
+      <!-- upload -->
+      <section>
+        <h2>
+          <span class="n">2</span> Upload the orthomosaic
+          <span class="info-wrap">
+            <button class="info-btn" tabindex="-1">i</button>
+            <div class="step-tip">
+              Upload your drone survey as a <b>GeoTIFF (.tif)</b> — RGB or multispectral both work.<br><br>
+              <b>Important:</b> once the first analysis runs, the dataset is locked. You can re-run with different parameters but cannot swap the image. Start a new project for a different area.<br><br>
+              For large files (&gt;500 MB) use the <b>Google Drive link</b> option — the server downloads it directly.
+            </div>
+          </span>
+        </h2>
+        <p class="lead">One GeoTIFF per project. It is locked once a run has been analyzed.</p>
+        <input id="ortho" type="file" accept=".tif,.tiff" />
+        <button id="btnUpload" onclick="uploadOrtho()">Upload GeoTIFF</button>
+        <div class="muted" style="margin:10px 0 3px">or fetch from a public Google Drive link (downloads server-side; large files take a while):</div>
+        <input id="driveUrl" placeholder="https://drive.google.com/file/d/.../view" />
+        <button id="btnDrive" onclick="uploadUrl()">Fetch from Drive</button>
+        <div id="lockNote" class="note" style="display:none"></div>
+        <div id="oinfo" class="note"></div>
+      </section>
+
+      <!-- analyze -->
+      <section>
+        <h2>
+          <span class="n">3</span> Configure &amp; analyze
+          <span class="info-wrap">
+            <button class="info-btn" tabindex="-1">i</button>
+            <div class="step-tip">
+              Runs the full detection + clustering pipeline:<br>
+              <ul>
+                <li><b>Detectree2</b> — detects individual tree crowns</li>
+                <li><b>DINOv2</b> — extracts visual features per crown</li>
+                <li><b>KMeans</b> — clusters crowns for each k in your k_list</li>
+                <li><b>t-SNE</b> — 2D visualisation plots</li>
+              </ul>
+              After it finishes, open <b>Browse output files</b> to inspect cluster plots and sample crown images — this helps you pick the right k before labelling.
+            </div>
+          </span>
+        </h2>
+        <p class="lead">Pick the models and tune the run, then start detection + clustering.</p>
+        <div id="runinfo" class="muted" style="margin-bottom:10px"></div>
+        <div class="grid">
+          <div>
+            <label>Run name <span class="muted">(for your own reference)</span></label>
+            <input id="runname" placeholder="run label" />
+          </div>
+          <div>
+            <label>Source EPSG <span class="muted">(blank = auto-detect)</span></label>
+            <input id="epsg" placeholder="e.g. 32643" />
+          </div>
+          <div>
+            <label>Detector model</label>
+            <select id="modelKey"><option>loading…</option></select>
+          </div>
+          <div>
+            <label>Feature extractor (DINOv2)</label>
+            <select id="backbone"><option>loading…</option></select>
+          </div>
         </div>
+
+        <details open>
+          <summary>Parameters</summary>
+          <div class="grid3" style="margin-top:8px">
+            <div><label>tile_size</label><input id="p_tile" type="number" value="10" /></div>
+            <div><label>buffer</label><input id="p_buf" type="number" value="10" /></div>
+            <div><label>img_size</label><input id="p_img" type="number" value="224" /></div>
+            <div><label>iou_threshold</label><input id="p_iou" type="number" step="0.01" value="0.9" /></div>
+            <div><label>conf_threshold</label><input id="p_conf" type="number" step="0.01" value="0.85" /></div>
+            <div><label>pca_components</label><input id="p_pca" type="number" value="50" /></div>
+            <div><label>batch_size</label><input id="p_batch" type="number" value="16" /></div>
+            <div style="grid-column:span 2"><label>k_list <span class="muted">(comma-separated)</span></label><input id="klist" value="2,4,6,8,10" /></div>
+          </div>
+        </details>
+
+        <button onclick="analyze()" id="btnAnalyze">Run analysis</button>
+        <button class="link" style="margin-left:12px" onclick="populateModels()">refresh model list</button>
+        <div id="aprog" style="display:none;margin-top:12px">
+          <div class="bar"><i></i></div>
+          <div id="astage" class="muted">starting…</div>
+        </div>
+        <div id="ainfo" class="note"></div>
+      </section>
+
+      <!-- label -->
+      <section>
+        <h2>
+          <span class="n">4</span> Label the clusters
+          <span class="info-wrap">
+            <button class="info-btn" tabindex="-1">i</button>
+            <div class="step-tip">
+              <b>Before labelling:</b> open FileBrowser and navigate to your project folder. Look at:<br>
+              <ul>
+                <li>t-SNE scatter plots — how well-separated are the clusters?</li>
+                <li>Sample crown images per cluster — do they look like distinct species?</li>
+              </ul>
+              Pick the <b>k</b> where clusters align with real species groups. Enter species names (comma-separated), assign each cluster number a species, then submit.<br><br>
+              Clusters left as <b>unlabelled</b> are excluded from the final species map.
+            </div>
+          </span>
+        </h2>
+        <p class="lead">Decide your species names, then assign one to each cluster.</p>
+        <div class="grid">
+          <div><label>Chosen k</label><input id="ck" type="number" placeholder="e.g. 4" /></div>
+          <div><label>Species names <span class="muted">(comma-separated)</span></label><input id="species" placeholder="oak, pine, birch" /></div>
+        </div>
+        <button class="ghost" onclick="buildClusterRows()">Build cluster table</button>
+        <div id="clusterRows"></div>
+        <button onclick="submitLabels()">Submit labels</button>
+        <div id="linfo" class="note"></div>
+      </section>
+
+      <!-- finalize -->
+      <section>
+        <h2>
+          <span class="n">5</span> Finalize &amp; export
+          <span class="info-wrap">
+            <button class="info-btn" tabindex="-1">i</button>
+            <div class="step-tip">
+              Assigns species labels to every detected crown and exports:<br>
+              <ul>
+                <li><b>species_map.kmz</b> — open in Google Earth Pro to see crowns coloured by species</li>
+                <li><b>species_map.csv</b> — per-crown data with coordinates, species &amp; confidence</li>
+                <li><b>Distribution summary</b> — crown count per species</li>
+              </ul>
+              Download links appear below on completion. Use <b>Browse all output files</b> to access every file from the full pipeline run.
+            </div>
+          </span>
+        </h2>
+        <p class="lead">Assign species, validate (if ground truth was provided), and write the KMZ + CSVs.</p>
+        <button onclick="finalize()" id="btnFinal">Finalize &amp; export</button>
+        <div id="fprog" style="display:none;margin-top:12px">
+          <div class="bar"><i></i></div>
+          <div id="fstage" class="muted">starting…</div>
+        </div>
+        <div id="results" class="note"></div>
+      </section>
+
+      <section>
+        <h2><span class="n">·</span> Activity log</h2>
+        <pre id="log"></pre>
+      </section>
+
+    </main>
+
+    <!-- ── FAQ SIDEBAR (right column) ── -->
+    <aside class="faq-col">
+      <div class="faq-card">
+        <div class="faq-header">
+          <h3>Guide &amp; FAQ</h3>
+          <p>New here? Start reading — or hover the <span style="background:#a8b0a0;color:#fff;border-radius:50%;display:inline-flex;width:14px;height:14px;align-items:center;justify-content:center;font-size:9px;font-family:Georgia,serif;font-style:italic">i</span> on each step.</p>
+        </div>
+
+        <details class="faq-item" open>
+          <summary>What is this tool?</summary>
+          <div class="faq-body">
+            An end-to-end pipeline that maps <strong>tree species from drone orthomosaics</strong>. It detects individual crowns, groups them by visual similarity, lets you assign species names, and exports a geospatial map you can open in Google Earth or GIS tools.
+          </div>
+        </details>
+
+        <details class="faq-item">
+          <summary>What do I need to get started?</summary>
+          <div class="faq-body">
+            <ul>
+              <li>A drone survey exported as a <strong>GeoTIFF (.tif)</strong> — RGB or multispectral</li>
+              <li>The API server running (check connection in Step 0)</li>
+              <li>Rough knowledge of the tree species present in your area</li>
+            </ul>
+            No programming skills required.
+          </div>
+        </details>
+
+        <details class="faq-item">
+          <summary>What happens step by step?</summary>
+          <div class="faq-body">
+            <strong>1 → Create project:</strong> reserves a folder for all your files.<br>
+            <strong>2 → Upload:</strong> your orthomosaic is stored on the server.<br>
+            <strong>3 → Analyze:</strong> AI detects crowns and clusters them by appearance.<br>
+            <strong>4 → Label:</strong> you assign species names to each cluster.<br>
+            <strong>5 → Finalize:</strong> exports the labelled species map.
+          </div>
+        </details>
+
+        <details class="faq-item">
+          <summary>How long does analysis take?</summary>
+          <div class="faq-body">
+            Depends on image size and server hardware:
+            <ul>
+              <li><strong>Small area</strong> (~500 crowns) — 5–15 min</li>
+              <li><strong>Large survey</strong> (10,000+ crowns) — 1–2 hrs</li>
+            </ul>
+            The pipeline runs in the background — you can monitor the activity log at the bottom of the page.
+          </div>
+        </details>
+
+        <details class="faq-item">
+          <summary>How do I pick the right k?</summary>
+          <div class="faq-body">
+            After Step 3, click <strong>Browse output files</strong> and open your project folder. Look at:
+            <ul>
+              <li><span class="tag">t-SNE plots</span> — well-separated blobs = good k</li>
+              <li><span class="tag">Cluster sample images</span> — do crowns in each cluster look like the same species?</li>
+            </ul>
+            Pick the smallest k where each cluster clearly corresponds to one species type. The pipeline recommends a starting value for you.
+          </div>
+        </details>
+
+        <details class="faq-item">
+          <summary>How do I use FileBrowser?</summary>
+          <div class="faq-body">
+            Click any <strong>Browse output files →</strong> link after project creation, analyze, or finalize. It opens a shared folder — no login needed.<br><br>
+            Key folders inside your project:
+            <ul>
+              <li><span class="tag">step1_output/</span> — detected crown polygons</li>
+              <li><span class="tag">step2_output/</span> — DINOv2 feature files</li>
+              <li><span class="tag">step3_output/</span> — cluster plots &amp; sample images</li>
+              <li><span class="tag">step4_output/</span> — final KMZ &amp; CSV exports</li>
+            </ul>
+          </div>
+        </details>
+
+        <details class="faq-item">
+          <summary>What outputs do I get after Finalize?</summary>
+          <div class="faq-body">
+            <ul>
+              <li><strong>species_map.kmz</strong> — open in Google Earth Pro; each crown is coloured by species</li>
+              <li><strong>species_map.csv</strong> — per-crown coordinates, assigned species &amp; cluster ID</li>
+              <li><strong>Distribution summary</strong> — crown count per species shown on screen</li>
+            </ul>
+            Download links appear directly in Step 5 after completion.
+          </div>
+        </details>
+
+        <details class="faq-item">
+          <summary>What is a KMZ file?</summary>
+          <div class="faq-body">
+            A KMZ is a compressed map file readable by <strong>Google Earth Pro</strong> and most GIS tools (QGIS, ArcGIS). It displays each detected crown as a polygon coloured by species — useful for field validation, reporting, and sharing with stakeholders.
+          </div>
+        </details>
+
+        <details class="faq-item">
+          <summary>Can I re-run the analysis?</summary>
+          <div class="faq-body">
+            Yes. After any analysis, change the parameters (different k_list, model, thresholds) and click <strong>Run analysis</strong> again. Each run is numbered (Run 1, Run 2…). The orthomosaic is shared across runs but labels and parameters are independent per run.
+          </div>
+        </details>
+
+        <details class="faq-item">
+          <summary>What if something goes wrong?</summary>
+          <div class="faq-body">
+            Check the <strong>Activity log</strong> at the bottom of the page for error details. Common issues:
+            <ul>
+              <li><em>Connection failed</em> — API server not running, check Step 0</li>
+              <li><em>Upload failed</em> — file too large or wrong format (must be .tif)</li>
+              <li><em>DAG failed</em> — pipeline error, check server logs</li>
+            </ul>
+            You can retry any step without starting over.
+          </div>
+        </details>
+
       </div>
-      <button class="ghost" onclick="ping()">Check connection</button>
-      <span id="conn" class="note muted">&nbsp;not checked yet</span>
-    </section>
+    </aside>
 
-    <!-- create -->
-    <section>
-      <h2><span class="n">1</span> Name the project</h2>
-      <p class="lead">A unique ID is generated server-side; everything else hangs off it.</p>
-      <label>Project name</label>
-      <input id="pname" placeholder="e.g. North block, June survey" />
-      <button onclick="createProject()">Create project</button>
-      <div id="pinfo" class="note"></div>
-    </section>
+  </div><!-- /page-layout -->
 
-    <!-- upload -->
-    <section>
-      <h2><span class="n">2</span> Upload the orthomosaic</h2>
-      <p class="lead">One GeoTIFF per project. It is locked once a run has been analyzed.</p>
-      <input id="ortho" type="file" accept=".tif,.tiff" />
-      <button id="btnUpload" onclick="uploadOrtho()">Upload GeoTIFF</button>
-      <div class="muted" style="margin:10px 0 3px">or fetch from a public Google Drive link (downloads server-side; large files take a while):</div>
-      <input id="driveUrl" placeholder="https://drive.google.com/file/d/.../view" />
-      <button id="btnDrive" onclick="uploadUrl()">Fetch from Drive</button>
-      <div id="lockNote" class="note" style="display:none"></div>
-      <div id="oinfo" class="note"></div>
-    </section>
-
-    <!-- analyze -->
-    <section>
-      <h2><span class="n">3</span> Configure &amp; analyze</h2>
-      <p class="lead">Pick the models and tune the run, then start detection + clustering.</p>
-      <div id="runinfo" class="muted" style="margin-bottom:10px"></div>
-      <div class="grid">
-        <div>
-          <label>Run name <span class="muted">(for your own reference)</span></label>
-          <input id="runname" placeholder="run label" />
-        </div>
-        <div>
-          <label>Source EPSG <span class="muted">(blank = auto-detect)</span></label>
-          <input id="epsg" placeholder="e.g. 32643" />
-        </div>
-        <div>
-          <label>Detector model</label>
-          <select id="modelKey"><option>loading…</option></select>
-        </div>
-        <div>
-          <label>Feature extractor (DINOv2)</label>
-          <select id="backbone"><option>loading…</option></select>
-        </div>
-      </div>
-
-      <details open>
-        <summary>Parameters</summary>
-        <div class="grid3" style="margin-top:8px">
-          <div><label>tile_size</label><input id="p_tile" type="number" value="10" /></div>
-          <div><label>buffer</label><input id="p_buf" type="number" value="10" /></div>
-          <div><label>img_size</label><input id="p_img" type="number" value="224" /></div>
-          <div><label>iou_threshold</label><input id="p_iou" type="number" step="0.01" value="0.9" /></div>
-          <div><label>conf_threshold</label><input id="p_conf" type="number" step="0.01" value="0.85" /></div>
-          <div><label>pca_components</label><input id="p_pca" type="number" value="50" /></div>
-          <div><label>batch_size</label><input id="p_batch" type="number" value="16" /></div>
-          <div style="grid-column:span 2"><label>k_list <span class="muted">(comma-separated)</span></label><input id="klist" value="2,4,6,8,10" /></div>
-        </div>
-      </details>
-
-      <button onclick="analyze()" id="btnAnalyze">Run analysis</button>
-      <button class="link" style="margin-left:12px" onclick="populateModels()">refresh model list</button>
-      <div id="aprog" style="display:none;margin-top:12px">
-        <div class="bar"><i></i></div>
-        <div id="astage" class="muted">starting…</div>
-      </div>
-      <div id="ainfo" class="note"></div>
-    </section>
-
-    <!-- label -->
-    <section>
-      <h2><span class="n">4</span> Label the clusters</h2>
-      <p class="lead">Decide your species names, then assign one to each cluster.</p>
-      <div class="grid">
-        <div><label>Chosen k</label><input id="ck" type="number" placeholder="e.g. 4" /></div>
-        <div><label>Species names <span class="muted">(comma-separated)</span></label><input id="species" placeholder="oak, pine, birch" /></div>
-      </div>
-      <button class="ghost" onclick="buildClusterRows()">Build cluster table</button>
-      <div id="clusterRows"></div>
-      <button onclick="submitLabels()">Submit labels</button>
-      <div id="linfo" class="note"></div>
-    </section>
-
-    <!-- finalize -->
-    <section>
-      <h2><span class="n">5</span> Finalize &amp; export</h2>
-      <p class="lead">Assign species, validate (if ground truth was provided), and write the KMZ + CSVs.</p>
-      <button onclick="finalize()" id="btnFinal">Finalize &amp; export</button>
-      <div id="fprog" style="display:none;margin-top:12px">
-        <div class="bar"><i></i></div>
-        <div id="fstage" class="muted">starting…</div>
-      </div>
-      <div id="results" class="note"></div>
-    </section>
-
-    <section>
-      <h2><span class="n">·</span> Activity log</h2>
-      <pre id="log"></pre>
-    </section>
-
-  </main>
   <footer>Tree-Crown pipeline &middot; internal tool</footer>
 
 <script>
