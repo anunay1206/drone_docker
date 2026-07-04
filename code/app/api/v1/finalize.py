@@ -11,12 +11,15 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_project, require_api_key, require_service_token, resolve_project
 from app.api.v1.results import build_results_payload
+from app.api.v1.runs import _current_request_id
+from app.core.logging import get_logger
 from app.db import models
 from app.db.session import get_db
 from app.schemas.project import AnalyzeTrigger, FinalizeTrigger
 from app.workers.tasks import job_b_finalize
 
 router = APIRouter()
+log = get_logger("app.api")
 
 # Includes FINALIZING so the trigger can hand off to this compute callback.
 _FINALIZE_OK = {"LABELS_SUBMITTED", "FINALIZING", "COMPLETED", "FAILED"}
@@ -90,6 +93,7 @@ def run_finalize(
     job = models.Job(
         project_id=project.id, type="finalize", state="RUNNING",
         started_at=datetime.utcnow(), celery_task_id=idempotency_key,
+        request_id=_current_request_id(),
     )
     db.add(job)
     db.commit()
@@ -106,6 +110,7 @@ def run_finalize(
         db.refresh(project)
         db.refresh(job)
         stage = job.current_stage or "unknown"
+        log.error("finalize failed project=%s job=%s stage=%s", project.id, job.id, stage, exc_info=True)
         if project.state == "FINALIZING":
             project.state = previous_state
             db.add(project)
@@ -115,6 +120,7 @@ def run_finalize(
             "message": project.error or str(exc),
             "project_id": project.id,
             "stage": stage,
+            "hint": "see the run's logs/ folder or errors.jsonl by request_id",
         }) from exc
 
     db.refresh(project)

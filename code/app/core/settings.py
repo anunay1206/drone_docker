@@ -55,6 +55,18 @@ class Settings(BaseSettings):
     # header ``X-Service-Token: <compute_token>`` (v4 §9.2).
     compute_token: str | None = None
 
+    # ── Google sign-in (GIS client-side token flow, audit-only) ────────
+    # When auth_enabled is True, human endpoints require the ``X-User-Email``
+    # header (set by the frontend after Google sign-in). Identity drives
+    # per-user audit logging + project ownership; the backend does NOT verify
+    # the Google token (safe only behind a gateway / internal network — see
+    # docs/OAUTH_GIS_INTEGRATION_PLAN.md §4). Default False keeps dev/tests open.
+    # google_client_id is FYI only: the PUBLIC client id actually lives in the
+    # frontend (frontend/config.js). The backend needs it only if we later move
+    # to server-side token verification (option (b)).
+    auth_enabled: bool = False
+    google_client_id: str | None = None
+
     # ── FileBrowser (optional) ─────────────────────────────────────────
     # When set, a public share is created for each project folder at creation
     # time and the share URL is returned in analyze / finalize responses.
@@ -74,12 +86,28 @@ class Settings(BaseSettings):
     celery_eager: bool = False
 
     # ── retention / cleanup ────────────────────────────────────────────
-    # A Celery Beat job (see app/workers/cleanup.py) deletes projects whose
-    # last activity is older than retention_days — DB row + storage folder.
-    retention_days: int = 7
-    cleanup_enabled: bool = True
-    cleanup_hour: int = 3          # daily run time (UTC), 0-23
-    cleanup_minute: int = 0        # 0-59
+    # Consent-aware retention runs via the standalone script scripts/run_retention.py
+    # (system cron), NOT the Celery beat task — keep cleanup_enabled False so the
+    # old blanket beat job can't wipe consented data. See
+    # docs/RETENTION_CONSENT_CLEANUP_PLAN.md.
+    #   consent 0 (No)        -> whole folder + DB row deleted
+    #   consent 1 (Yes, all)  -> retained (retain_consent_all)
+    #   consent 2 (unlabelled)-> keep through Step 1; delete step2/3/4 + labels
+    retention_days: int = 30       # configurable retention window (days)
+    retain_consent_all: bool = True
+    cleanup_enabled: bool = False  # legacy Celery beat task — OFF (script drives it)
+    cleanup_hour: int = 3          # (legacy beat) daily run time (UTC), 0-23
+    cleanup_minute: int = 0        # (legacy beat) 0-59
+
+    # ── logging (side-channel; see docs/ERROR_LOGGING_PLAN.md §6) ───────
+    # Central logging config. log_dir defaults OUTSIDE storage_root/projects so
+    # app.log + errors.jsonl survive retention prune/delete. All TCP_* overrides
+    # (e.g. TCP_LOG_LEVEL, TCP_LOG_JSON) work automatically via env_prefix.
+    log_level: str = "INFO"          # TCP_LOG_LEVEL
+    log_dir: str = "/data/logs"      # TCP_LOG_DIR — OUTSIDE storage_root/projects
+    log_json: bool = False           # TCP_LOG_JSON — text (dev) / JSON (prod)
+    log_max_bytes: int = 10_000_000  # TCP_LOG_MAX_BYTES — RotatingFileHandler cap
+    log_backup_count: int = 5        # TCP_LOG_BACKUP_COUNT — rotated files kept
 
 
 @lru_cache

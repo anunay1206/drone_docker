@@ -17,6 +17,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_project, require_api_key, resolve_project
+from app.core.logging import ERROR_CODES, get_logger, request_id_var
 from app.core.models_registry import resolve_backbone, resolve_model_path
 from app.core.storage import ensure_project_dirs
 from app.db import models
@@ -28,6 +29,28 @@ from app.services.run_dispatch import dispatch_analyze, dispatch_finalize
 from app.services.state import transition_if
 
 router = APIRouter()
+
+log = get_logger("app.api")
+
+
+def _current_request_id():
+    """Read the request_id ContextVar (minted in the audit middleware); the
+    "-" default means no request scope, so return None for the nullable column."""
+    try:
+        rid = request_id_var.get()
+    except LookupError:
+        return None
+    return rid if rid and rid != "-" else None
+
+
+def _classify_dispatch_error(exc: Exception) -> tuple[str, str]:
+    """Map a dispatch RuntimeError (which carries the classified reason from
+    airflow_client) to a §10 code + remediation hint for the human 502 body."""
+    text = str(exc).lower()
+    if "http" in text and ("returned" in text or "status" in text):
+        return ERROR_CODES["AIRFLOW_HTTP_ERROR"], "check the Airflow DAG / logs"
+    return ERROR_CODES["AIRFLOW_UNREACHABLE"], "check the Airflow service / URL"
+
 
 # A NEW run may be launched only from these states (in-progress excluded on
 # purpose). Launching from a used-run state archives that run and opens a fresh
@@ -42,22 +65,28 @@ def _gate(db: Session, project, allowed: set[str], in_progress_state: str, actio
     if not transition_if(db, project, allowed, in_progress_state):
         db.refresh(project)
         if project.state in _BUSY:
+            log.warning("409 CONFLICT_BUSY project=%s action=%s state=%s",
+                        project.id, action, project.state)
             raise HTTPException(409, {
-                "code": "CONFLICT_BUSY",
+                "code": ERROR_CODES["CONFLICT_BUSY"],
                 "message": f"A run is already in progress (state {project.state})",
                 "project_id": project.id,
+                "hint": "wait for the current run to finish",
             })
+        log.warning("409 INVALID_STATE project=%s action=%s state=%s allowed=%s",
+                    project.id, action, project.state, sorted(allowed))
         raise HTTPException(409, {
-            "code": "INVALID_STATE",
-            "message": f"Cannot {action} from state {project.state}",
+            "code": ERROR_CODES["INVALID_STATE"],
+            "message": f"Cannot {action} from state {project.state} (allowed: {sorted(allowed)})",
             "project_id": project.id,
+            "hint": "reach an allowed state before triggering this run",
         })
 
 
 def _new_job(db: Session, project, job_type: str):
     job = models.Job(
         project_id=project.id, type=job_type, state="QUEUED",
-        started_at=datetime.utcnow(),
+        started_at=datetime.utcnow(), request_id=_current_request_id(),
     )
     db.add(job)
     db.commit()
@@ -145,10 +174,12 @@ def trigger_analyze(
         project = resolve_project(db, user, body.project_id)
 
     if not project.orthos:
+        log.warning("400 NO_ORTHO project=%s action=analyze", project.id)
         raise HTTPException(400, {
-            "code": "BAD_REQUEST",
-            "message": "Upload at least one orthomosaic first",
+            "code": ERROR_CODES["NO_ORTHO"],
+            "message": f"No orthomosaic uploaded for project {project.id}",
             "project_id": project.id,
+            "hint": "upload a .tif first",
         })
     _validate_trigger_body(project, body)
     pre_state = project.state
@@ -159,10 +190,14 @@ def trigger_analyze(
         run_id = dispatch_analyze(project.id, job.id, project.current_run)
     except RuntimeError as exc:
         _fail_trigger(db, project, job, exc)
+        code, hint = _classify_dispatch_error(exc)
+        log.error("502 %s project=%s action=analyze job=%s: %s",
+                  code, project.id, job.id, exc, exc_info=True)
         raise HTTPException(502, {
-            "code": "DISPATCH_FAILED",
+            "code": code,
             "message": f"Failed to trigger analyze: {exc}",
             "project_id": project.id,
+            "hint": hint,
         }) from exc
     _mark_dispatched(db, job, run_id)
     return {
@@ -184,20 +219,24 @@ def trigger_finalize(
 ):
     path_project_id = request.path_params.get("project_id")
     if not path_project_id and not (body and body.project_id):
+        log.warning("400 MISSING_PARAM field=project_id action=finalize")
         raise HTTPException(400, {
-            "code": "BAD_REQUEST",
-            "message": "project_id is required in the request body",
+            "code": ERROR_CODES["MISSING_PARAM"],
+            "message": "Required field 'project_id' is missing",
             "project_id": None,
+            "hint": "provide: project_id",
         })
     if body and body.project_id:
         project = resolve_project(db, user, body.project_id)
 
     n_labels = db.query(models.ClusterLabel).filter_by(project_id=project.id).count()
     if n_labels == 0:
+        log.warning("400 NO_LABELS project=%s action=finalize", project.id)
         raise HTTPException(400, {
-            "code": "BAD_REQUEST",
-            "message": "Submit labels before finalizing",
+            "code": ERROR_CODES["NO_LABELS"],
+            "message": f"No labels submitted for project {project.id}",
             "project_id": project.id,
+            "hint": "submit the cluster table",
         })
     _gate(db, project, _FINALIZE_FROM, "FINALIZING", "finalize")
     job = _new_job(db, project, "finalize")
@@ -205,10 +244,14 @@ def trigger_finalize(
         run_id = dispatch_finalize(project.id, job.id, project.current_run)
     except RuntimeError as exc:
         _fail_trigger(db, project, job, exc)
+        code, hint = _classify_dispatch_error(exc)
+        log.error("502 %s project=%s action=finalize job=%s: %s",
+                  code, project.id, job.id, exc, exc_info=True)
         raise HTTPException(502, {
-            "code": "DISPATCH_FAILED",
+            "code": code,
             "message": f"Failed to trigger finalize: {exc}",
             "project_id": project.id,
+            "hint": hint,
         }) from exc
     _mark_dispatched(db, job, run_id)
     return {

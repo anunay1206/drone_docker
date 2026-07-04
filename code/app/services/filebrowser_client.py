@@ -13,7 +13,10 @@ import json
 import urllib.error
 import urllib.request
 
+from app.core.logging import ERROR_CODES, classify_conn_error, get_logger
 from app.core.settings import settings
+
+log = get_logger("app.filebrowser")
 
 
 def filebrowser_enabled() -> bool:
@@ -47,8 +50,22 @@ def create_project_share(project_id: str) -> str:
     base = settings.filebrowser_base_url.rstrip("/")
     try:
         token = _get_token()
+    except urllib.error.HTTPError as e:
+        log.error("FileBrowser login failed at %s: HTTP %s", base, e.code, exc_info=True)
+        err = RuntimeError(f"FileBrowser login failed (HTTP {e.code})")
+        err.code = ERROR_CODES["FILEBROWSER_AUTH"]
+        raise err from e
+    except urllib.error.URLError as e:
+        reason = classify_conn_error(e, timeout=10)
+        log.error("FileBrowser unreachable at %s: %s", base, reason, exc_info=True)
+        err = RuntimeError(f"FileBrowser unreachable at {base}: {reason}")
+        err.code = ERROR_CODES["FILEBROWSER_UNREACHABLE"]
+        raise err from e
     except Exception as e:
-        raise RuntimeError(f"FileBrowser login failed: {e}") from e
+        log.error("FileBrowser login failed at %s", base, exc_info=True)
+        err = RuntimeError(f"FileBrowser login failed: {e}")
+        err.code = ERROR_CODES["FILEBROWSER_AUTH"]
+        raise err from e
 
     body = json.dumps({}).encode()
     req = urllib.request.Request(
@@ -63,9 +80,21 @@ def create_project_share(project_id: str) -> str:
         return data["hash"]
     except urllib.error.HTTPError as e:
         detail = e.read().decode(errors="replace")[:300]
-        raise RuntimeError(f"FileBrowser share API returned {e.code}: {detail}") from e
+        log.error("FileBrowser share API returned %s at %s", e.code, base, exc_info=True)
+        err = RuntimeError(f"FileBrowser share API returned {e.code}: {detail}")
+        err.code = ERROR_CODES["FILEBROWSER_SHARE_FAILED"]
+        raise err from e
+    except urllib.error.URLError as e:
+        reason = classify_conn_error(e, timeout=10)
+        log.error("FileBrowser unreachable at %s: %s", base, reason, exc_info=True)
+        err = RuntimeError(f"FileBrowser unreachable at {base}: {reason}")
+        err.code = ERROR_CODES["FILEBROWSER_UNREACHABLE"]
+        raise err from e
     except Exception as e:
-        raise RuntimeError(f"FileBrowser share failed: {e}") from e
+        log.error("FileBrowser share failed at %s", base, exc_info=True)
+        err = RuntimeError(f"FileBrowser share failed: {e}")
+        err.code = ERROR_CODES["FILEBROWSER_SHARE_FAILED"]
+        raise err from e
 
 
 def share_url(share_hash: str) -> str:

@@ -37,6 +37,14 @@ class Project(Base):
     run_name: Mapped[str | None] = mapped_column(String, nullable=True)
     runs: Mapped[list | None] = mapped_column(JSON, default=list)
     share_hash: Mapped[str | None] = mapped_column(String, nullable=True)
+    # Data-sharing consent captured after finalize:
+    #   0 = no / not given (default), 1 = yes, all data,
+    #   2 = yes, unlabelled (Step-1) crown data only.
+    consent: Mapped[int] = mapped_column(Integer, default=0)
+    consent_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    # Set by scripts/run_retention.py once a consent=2 project has been pruned to
+    # Step-1 (step2/3/4 removed). Idempotency marker — a pruned row is skipped.
+    pruned_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(
@@ -81,6 +89,9 @@ class Job(Base):
     progress: Mapped[float] = mapped_column(Float, default=0.0)
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
     celery_task_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    # Correlation id from the HTTP request that created this job (side-channel;
+    # see docs/ERROR_LOGGING_PLAN.md §3). Nullable — populated at Job creation.
+    request_id: Mapped[str | None] = mapped_column(String, nullable=True)
     log_path: Mapped[str | None] = mapped_column(String, nullable=True)
     started_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     finished_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)

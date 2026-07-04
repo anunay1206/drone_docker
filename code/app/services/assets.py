@@ -28,10 +28,12 @@ def analyze_asset_id(project, run: int | None = None) -> str:
 def analyze_asset_fields(project, run: int | None = None) -> dict:
     version = run_version(project, run)
     asset_id = analyze_asset_id(project, version)
-    return asset_response_fields(project, asset_id, version)
+    return asset_response_fields(project, asset_id, version, stage="analyze")
 
 
-def asset_response_fields(project, asset_id: str, run: int | None = None) -> dict:
+def asset_response_fields(
+    project, asset_id: str, run: int | None = None, stage: str | None = None
+) -> dict:
     version = run_version(project, run)
     portable_asset_id = _portable_asset_id(asset_id)
     return {
@@ -40,13 +42,15 @@ def asset_response_fields(project, asset_id: str, run: int | None = None) -> dic
         "asset_ids": [portable_asset_id],
         "version": str(version),
         "hosting_platform": HOSTING_PLATFORM,
-        "stac": stac_response(project, portable_asset_id, version),
+        "stac": stac_response(project, portable_asset_id, version, stage=stage),
     }
 
 
-def stac_response(project, asset_id: str, run: int | None = None) -> dict:
+def stac_response(
+    project, asset_id: str, run: int | None = None, stage: str | None = None
+) -> dict:
     version = run_version(project, run)
-    item = build_stac_item(project, run=version)
+    item = build_stac_item(project, run=version, stage=stage)
     props = item.setdefault("properties", {})
     props["project_id"] = project.id
     props["run"] = version

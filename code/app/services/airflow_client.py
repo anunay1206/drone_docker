@@ -14,7 +14,10 @@ import json
 import urllib.error
 import urllib.request
 
+from app.core.logging import ERROR_CODES, classify_conn_error, get_logger
 from app.core.settings import settings
+
+log = get_logger("app.airflow")
 
 
 def airflow_enabled() -> bool:
@@ -50,9 +53,16 @@ def trigger_dag(dag_id: str, conf: dict, timeout: int = 30) -> str:
         return data.get("dag_run_id", "")
     except urllib.error.HTTPError as e:
         detail = e.read().decode(errors="replace")[:500]
-        raise RuntimeError(f"Airflow returned {e.code} for {dag_id}: {detail}") from e
+        log.error("Airflow HTTP error triggering %s: %s", dag_id, e.code, exc_info=True)
+        err = RuntimeError(f"Airflow returned {e.code} for {dag_id}: {detail}")
+        err.code = ERROR_CODES["AIRFLOW_HTTP_ERROR"]
+        raise err from e
     except urllib.error.URLError as e:
-        raise RuntimeError(f"Could not reach Airflow at {base}: {e.reason}") from e
+        reason = classify_conn_error(e, timeout=timeout)
+        log.error("Airflow unreachable at %s: %s", base, reason, exc_info=True)
+        err = RuntimeError(f"Airflow unreachable at {base}: {reason}")
+        err.code = ERROR_CODES["AIRFLOW_UNREACHABLE"]
+        raise err from e
 
 
 def trigger_drone_dag(conf: dict, timeout: int = 30) -> str:
@@ -74,6 +84,13 @@ def get_dag_run_state(dag_run_id: str, timeout: int = 10) -> str:
         return data.get("state", "unknown")
     except urllib.error.HTTPError as e:
         detail = e.read().decode(errors="replace")[:500]
-        raise RuntimeError(f"Airflow returned {e.code} polling {dag_run_id}: {detail}") from e
+        log.error("Airflow HTTP error polling %s: %s", dag_run_id, e.code, exc_info=True)
+        err = RuntimeError(f"Airflow returned {e.code} for {dag_id}: {detail}")
+        err.code = ERROR_CODES["AIRFLOW_HTTP_ERROR"]
+        raise err from e
     except urllib.error.URLError as e:
-        raise RuntimeError(f"Could not reach Airflow at {base}: {e.reason}") from e
+        reason = classify_conn_error(e, timeout=timeout)
+        log.error("Airflow unreachable at %s: %s", base, reason, exc_info=True)
+        err = RuntimeError(f"Airflow unreachable at {base}: {reason}")
+        err.code = ERROR_CODES["AIRFLOW_UNREACHABLE"]
+        raise err from e

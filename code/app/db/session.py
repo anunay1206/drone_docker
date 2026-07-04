@@ -43,6 +43,12 @@ def _migrate_sqlite_add_columns() -> None:
             "current_run": "INTEGER DEFAULT 1",
             "runs": "JSON",
             "run_name": "TEXT",
+            "consent": "INTEGER DEFAULT 0",
+            "consent_at": "DATETIME",
+            "pruned_at": "DATETIME",
+        },
+        "jobs": {
+            "request_id": "TEXT",
         },
     }
     with engine.begin() as conn:

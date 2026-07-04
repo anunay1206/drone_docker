@@ -13,3 +13,5 @@ code/predictions/
 .pytest_cache/
 .mypy_cache/
 node_modules/
+.codebase_map_state.json
+frontend/config.js

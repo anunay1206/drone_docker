@@ -18,6 +18,7 @@ import csv
 import json
 import os
 from datetime import datetime, timezone
+# (stage-aware STAC ids + geojson footprint fallback added — see FEATURE_PLAN)
 
 from app.core.models_registry import default_backbone
 from app.core.settings import settings
@@ -55,6 +56,68 @@ def _slug(text: str) -> str:
     while "__" in s:
         s = s.replace("__", "_")
     return s
+
+
+def _footprint_from_geojson(geojson_path: str | None):
+    """Fallback footprint: (geometry, bbox) in WGS84 from the crown GeoJSON.
+
+    ``tree_crown_pipeline`` already reprojects the crown polygons to EPSG:4326
+    (``gdf_all.to_crs(epsg=4326)``) before writing them, so the GeoJSON is
+    WGS84. Used when the ortho GeoTIFF has no embedded CRS and the raster-based
+    footprint could not be computed. Returns ``(None, None)`` on any failure so
+    STAC emission never blocks finalize.
+    """
+    if not geojson_path or not os.path.exists(geojson_path):
+        return None, None
+    try:
+        with open(geojson_path) as f:
+            gj = json.load(f)
+    except Exception:
+        return None, None
+
+    minx = miny = float("inf")
+    maxx = maxy = float("-inf")
+    found = False
+
+    def _walk(coords):
+        nonlocal minx, miny, maxx, maxy, found
+        if (
+            isinstance(coords, (list, tuple))
+            and len(coords) >= 2
+            and isinstance(coords[0], (int, float))
+            and isinstance(coords[1], (int, float))
+        ):
+            x, y = coords[0], coords[1]
+            minx, miny = min(minx, x), min(miny, y)
+            maxx, maxy = max(maxx, x), max(maxy, y)
+            found = True
+            return
+        if isinstance(coords, (list, tuple)):
+            for c in coords:
+                _walk(c)
+
+    feats = gj.get("features") if isinstance(gj, dict) else None
+    if feats is None and isinstance(gj, dict) and gj.get("type") == "Feature":
+        feats = [gj]
+    for feat in feats or []:
+        geom = (feat or {}).get("geometry") or {}
+        _walk(geom.get("coordinates"))
+
+    if not found:
+        return None, None
+
+    bbox = [round(minx, 6), round(miny, 6), round(maxx, 6), round(maxy, 6)]
+    geometry = {
+        "type": "Polygon",
+        "coordinates": [[
+            [bbox[0], bbox[1]],
+            [bbox[0], bbox[3]],
+            [bbox[2], bbox[3]],
+            [bbox[2], bbox[1]],
+            [bbox[0], bbox[1]],
+        ]],
+    }
+    return geometry, bbox
 
 
 def _footprint_wgs84(ortho_dir: str):
@@ -129,8 +192,18 @@ def _table_columns(master_csv: str) -> list[dict]:
     return cols
 
 
-def build_stac_item(project, chosen_k: int | None = None, run: int | None = None) -> dict:
-    """Construct the STAC Item dict for the project's current run."""
+def build_stac_item(
+    project,
+    chosen_k: int | None = None,
+    run: int | None = None,
+    stage: str | None = None,
+) -> dict:
+    """Construct the STAC Item dict for the project's current run.
+
+    ``stage`` (``"analyze"`` / ``"finalize"``) is appended to the item id so the
+    two compute phases emit distinct, non-colliding STAC items. ``None`` keeps
+    the legacy id (``..._run<n>``) for any caller that does not set a stage.
+    """
     run = run or _run(project)
     paths = project_paths(project.id, run)
     params = dict(getattr(project, "params", None) or {})
@@ -142,9 +215,15 @@ def build_stac_item(project, chosen_k: int | None = None, run: int | None = None
     cm_png = os.path.join(paths["step3_output"], "confusion_matrix.png")
 
     geometry, bbox = _footprint_wgs84(paths["input_ortho"])
+    if bbox is None:
+        # Ortho lacked an embedded CRS / no readable raster — fall back to the
+        # crown GeoJSON, which is already WGS84 (see _footprint_from_geojson).
+        geometry, bbox = _footprint_from_geojson(geojson)
 
     now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     item_id = f"{_slug(project.name) or 'tree_crown'}_{project.id[:8]}_run{run}"
+    if stage:
+        item_id += f"_{stage}"
 
     input_parameters = {
         "tile_size": params.get("tile_size", 10),
@@ -301,8 +380,11 @@ def _first_geojson(poly_dir: str) -> str | None:
 
 
 def write_stac_item(project, chosen_k: int | None = None) -> str:
-    """Build and persist the STAC Item to the run's step4 output. Returns path."""
-    item = build_stac_item(project, chosen_k=chosen_k)
+    """Build and persist the STAC Item to the run's step4 output. Returns path.
+
+    Written by job_b_finalize, so it is tagged ``stage="finalize"``.
+    """
+    item = build_stac_item(project, chosen_k=chosen_k, stage="finalize")
     out = stac_item_path(project)
     os.makedirs(os.path.dirname(out), exist_ok=True)
     with open(out, "w") as f:

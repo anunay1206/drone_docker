@@ -1,15 +1,24 @@
 """Final results summary + downloads (current run) + per-run history/comparison."""
 import csv
 import os
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
 
 from app.api.deps import get_project
 from app.core.storage import project_paths
+from app.db.session import get_db
 from app.services.assets import analyze_asset_fields
 
 router = APIRouter()
+
+
+class ConsentBody(BaseModel):
+    # 0 = no / not given, 1 = yes all data, 2 = yes unlabelled (Step-1) only.
+    consent: int
 
 
 def _run(project) -> int:
@@ -60,6 +69,12 @@ def build_results_payload(project) -> dict:
         "species_distribution": distribution,
         "validation": _read_validation(p),
         "files_url": files_url,
+        "consent": getattr(project, "consent", 0),
+        "consent_at": (
+            project.consent_at.isoformat()
+            if getattr(project, "consent_at", None)
+            else None
+        ),
         "downloads": {
             "kmz": f"{base}/kmz" if os.path.exists(kmz) else None,
             "crown_master_csv": f"{base}/crown-master.csv" if os.path.exists(master) else None,
@@ -77,6 +92,30 @@ def build_results_payload(project) -> dict:
 def results(project=Depends(get_project)):
     _require_completed(project)
     return build_results_payload(project)
+
+
+@router.post("/projects/{project_id}/consent")
+@router.post("/project/consent")
+def submit_consent(
+    body: ConsentBody,
+    project=Depends(get_project),
+    db: Session = Depends(get_db),
+):
+    """Capture the user's data-sharing consent after finalize.
+
+    0 = no / not given, 1 = yes to all data, 2 = yes to unlabelled (Step-1) only.
+    """
+    if body.consent not in (0, 1, 2):
+        raise HTTPException(400, {"code": "BAD_REQUEST",
+            "message": "consent must be one of 0 (no), 1 (all), 2 (unlabelled only)",
+            "project_id": project.id})
+    _require_completed(project)
+    project.consent = body.consent
+    project.consent_at = datetime.utcnow()
+    db.add(project)
+    db.commit()
+    return {"project_id": project.id, "consent": project.consent,
+            "consent_at": project.consent_at.isoformat()}
 
 
 @router.get("/projects/{project_id}/results/kmz")

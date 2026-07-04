@@ -16,7 +16,13 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_project, require_api_key, require_service_token, resolve_project
 from app.api.v1.clustering import build_clustering_payload
-from app.api.v1.runs import _apply_run_config, _validate_trigger_body
+from app.api.v1.runs import (
+    _apply_run_config,
+    _classify_dispatch_error,
+    _current_request_id,
+    _validate_trigger_body,
+)
+from app.core.logging import ERROR_CODES, get_logger
 from app.db import models
 from app.db.session import get_db
 from app.schemas.project import AnalyzeTrigger
@@ -25,6 +31,8 @@ from app.services.assets import analyze_asset_fields
 from app.workers.tasks import job_a_analyze
 
 router = APIRouter()
+
+log = get_logger("app.api")
 
 # Includes ANALYZING so the trigger (which already moved the project into the
 # in-progress state) can hand off to this compute callback.
@@ -222,6 +230,7 @@ def run_analyze(
     job = models.Job(
         project_id=project.id, type="analyze", state="RUNNING",
         started_at=datetime.utcnow(), celery_task_id=idempotency_key,
+        request_id=_current_request_id(),
     )
     db.add(job)
     db.commit()
@@ -238,6 +247,7 @@ def run_analyze(
         db.refresh(project)
         db.refresh(job)
         stage = job.current_stage or "unknown"
+        log.error("analyze failed project=%s job=%s stage=%s", project.id, job.id, stage, exc_info=True)
         if project.state == "ANALYZING":
             project.state = previous_state
             db.add(project)
@@ -247,6 +257,7 @@ def run_analyze(
             "message": project.error or str(exc),
             "project_id": project.id,
             "stage": stage,
+            "hint": "see the run's logs/ folder or errors.jsonl by request_id",
         }) from exc
 
     db.refresh(project)

@@ -17,11 +17,21 @@ import sys
 import traceback
 from datetime import datetime
 
+# Silence tqdm progress bars in the worker. Redirected to a file, tqdm's \r
+# updates don't overwrite — every tick is saved, bloating run logs ~10x and
+# drowning the real signal. tqdm reads TQDM_DISABLE at import, so this must run
+# BEFORE the lazy pipeline imports (predict / tree_crown_pipeline / detectree2)
+# inside the tasks. setdefault so an explicit env override still wins.
+os.environ.setdefault("TQDM_DISABLE", "1")
+
+from app.core.logging import get_logger, with_context
 from app.core.storage import ensure_project_dirs, project_paths, reset_dirs
 from app.db import models
 from app.db.session import SessionLocal
 from app.services.pipeline_adapter import build_config
 from app.workers.celery_app import celery_app
+
+log = get_logger("app.pipeline")
 
 # ── warm model caches (one per worker process) ─────────────────────────
 _PREDICTORS: dict = {}
@@ -109,9 +119,17 @@ def _read_recommended_k(dir_cluster: str):
 def job_a_analyze(self, project_id: str, job_id: str):
     db = SessionLocal()
     logf = None
-    try:
-        project = db.get(models.Project, project_id)
-        job = db.get(models.Job, job_id)
+    project = db.get(models.Project, project_id)
+    job = db.get(models.Job, job_id)
+    # Bind correlation context INSIDE the task body: local-dispatch runs this in
+    # a daemon thread and ContextVars don't inherit across threads.
+    with with_context(
+        job_id=job_id,
+        project_id=project_id,
+        dag_run_id=(getattr(job, "celery_task_id", None) or ""),
+        stage="analyze",
+    ):
+      try:
         run = project.current_run or 1
         paths = ensure_project_dirs(project_id, run)
         # fresh analysis: drop any derived artifacts from a previous attempt of
@@ -193,10 +211,10 @@ def job_a_analyze(self, project_id: str, job_id: str):
                  progress=1.0, finished_at=datetime.utcnow())
         _set_state(db, project, "AWAITING_LABELS")
 
-    except Exception as e:
+      except Exception as e:
         _fail(db, project_id, job_id, e)
         raise
-    finally:
+      finally:
         if logf:
             logf.close()
         db.close()
@@ -209,9 +227,17 @@ def job_a_analyze(self, project_id: str, job_id: str):
 def job_b_finalize(self, project_id: str, job_id: str):
     db = SessionLocal()
     logf = None
-    try:
-        project = db.get(models.Project, project_id)
-        job = db.get(models.Job, job_id)
+    project = db.get(models.Project, project_id)
+    job = db.get(models.Job, job_id)
+    # Bind correlation context INSIDE the task body (daemon-thread safe; see
+    # job_a_analyze note).
+    with with_context(
+        job_id=job_id,
+        project_id=project_id,
+        dag_run_id=(getattr(job, "celery_task_id", None) or ""),
+        stage="finalize",
+    ):
+      try:
         run = project.current_run or 1
         paths = ensure_project_dirs(project_id, run)
         # clean outputs from any previous finalize (e.g. after re-labeling) so
@@ -250,17 +276,17 @@ def job_b_finalize(self, project_id: str, job_id: str):
                 from app.services.stac import write_stac_item
 
                 write_stac_item(project, chosen_k=cfg.CHOSEN_K)
-            except Exception as stac_exc:  # pragma: no cover - best effort
-                print(f"[stac] item emission skipped: {stac_exc}")
+            except Exception:  # pragma: no cover - best effort
+                log.warning("stac emission skipped", exc_info=True)
 
         _set_job(db, job, state="SUCCEEDED", current_stage="done",
                  progress=1.0, finished_at=datetime.utcnow())
         _set_state(db, project, "COMPLETED")
 
-    except Exception as e:
+      except Exception as e:
         _fail(db, project_id, job_id, e)
         raise
-    finally:
+      finally:
         if logf:
             logf.close()
         db.close()
@@ -296,7 +322,47 @@ def _fail(db, project_id: str, job_id: str, exc: Exception):
     tb = traceback.format_exc()
     job = db.get(models.Job, job_id)
     project = db.get(models.Project, project_id)
+    stage = getattr(job, "current_stage", None) if job else None
+    # Duration (ms) since the job started, if we have a start timestamp.
+    duration_ms = None
+    started_at = getattr(job, "started_at", None) if job else None
+    if started_at is not None:
+        try:
+            duration_ms = int(
+                (datetime.utcnow() - started_at).total_seconds() * 1000
+            )
+        except Exception:
+            duration_ms = None
+    # Durable, structured ERROR line (also lands in errors.jsonl) keyed by the
+    # correlation ids already bound in the task body's with_context block.
+    log.error(
+        "job %s failed during stage=%s project=%s duration_ms=%s",
+        job_id, stage, project_id, duration_ms,
+        exc_info=exc,
+    )
     if job:
+        # Also append the traceback to the run's own .log file so the log is
+        # self-sufficient for RCA — otherwise the file just stops mid-step and
+        # the error lives only in the DB Job.error column.
+        _write_failure_to_log(getattr(job, "log_path", None), job_id, exc, tb)
         _set_job(db, job, state="FAILED", error=tb, finished_at=datetime.utcnow())
     if project:
         _set_state(db, project, "FAILED", error=str(exc))
+
+
+def _write_failure_to_log(log_path, job_id: str, exc: Exception, tb: str) -> None:
+    """Append a clearly-marked failure block (timestamp + exception + traceback)
+    to the run log. Best-effort: never raise from the failure path."""
+    if not log_path:
+        return
+    try:
+        ts = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+        with open(log_path, "a", buffering=1) as f:
+            f.write(
+                f"\n{'='*70}\n"
+                f"ERROR  {ts}  job={job_id}\n"
+                f"{type(exc).__name__}: {exc}\n"
+                f"{'-'*70}\n{tb}\n{'='*70}\n"
+            )
+    except Exception:
+        pass

@@ -30,6 +30,15 @@ services:
       timeout: 5s
       retries: 3
 
+  filebrowser:
+    image: filebrowser/filebrowser
+    ports:
+      - "8097:80"
+    volumes:
+      - ./data/storage/projects:/srv
+      - filebrowser_db:/database
+    restart: unless-stopped
+
   frontend:
     image: ${IMAGE_FRONTEND:-anunay12/treecrown-frontend:latest}
     pull_policy: always
@@ -40,3 +49,5 @@ services:
       - ./frontend:/usr/share/nginx/html
     depends_on:
       - api
+volumes:
+  filebrowser_db:

@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import FileResponse, StreamingResponse
 
 from app.api.deps import get_project
-from app.core.storage import project_paths
+from app.core.storage import project_paths, relative_artifact_path
 from app.services.assets import analyze_asset_fields
 
 router = APIRouter()
@@ -40,6 +40,20 @@ def build_clustering_payload(request: Request, project) -> dict:
     cdir = _clustering_dir(project)
     base = str(request.base_url).rstrip("/")
     avail = project.available_k or []
+    # Detection overlay: emit the storage-relative FILE path (not an API URL),
+    # e.g. projects/<id>/work/run_<n>/detectree/S3C/overlay.png. None if absent.
+    _det = project_paths(project.id, _run(project))["detectree"]
+    _subs = (
+        sorted(d for d in os.listdir(_det) if os.path.isdir(os.path.join(_det, d)))
+        if os.path.isdir(_det)
+        else []
+    )
+    _overlay_f = os.path.join(_det, _subs[0], "overlay.png") if _subs else ""
+    overlay_rel = (
+        relative_artifact_path(_overlay_f)
+        if (_overlay_f and os.path.exists(_overlay_f))
+        else None
+    )
     per_k = [
         {
             "k": k,
@@ -58,7 +72,7 @@ def build_clustering_payload(request: Request, project) -> dict:
         ),
         "k_selection_plot_url": f"{base}/api/v1/project/clustering/k-selection.png",
         "per_k": per_k,
-        "detection_overlay_url": f"{base}/api/v1/project/detection/overlay.png",
+        "detection_overlay_url": overlay_rel,
     }
     payload.update(analyze_asset_fields(project))
     return payload

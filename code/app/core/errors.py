@@ -16,6 +16,10 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from app.core.logging import get_logger
+
+log = get_logger("app.errors")
+
 # Default machine code per HTTP status (used when a call site doesn't supply one).
 _STATUS_CODE = {
     400: "BAD_REQUEST",
@@ -39,38 +43,54 @@ class ApiError(Exception):
     """Raise for a precise error envelope with a stable machine code."""
 
     def __init__(self, status_code, code, message, *,
-                 project_id=None, stage=None, details=None):
+                 project_id=None, stage=None, details=None, hint=None):
         self.status_code = status_code
         self.code = code
         self.message = message
         self.project_id = project_id
         self.stage = stage
         self.details = details
+        self.hint = hint
         super().__init__(message)
 
 
-def _envelope(code, message, project_id=None, stage=None, details=None):
-    return {
-        "error": {
-            "code": code,
-            "message": message,
-            "project_id": project_id,
-            "stage": stage,
-            "details": details,
-        }
+def _envelope(code, message, project_id=None, stage=None, details=None, hint=None):
+    error = {
+        "code": code,
+        "message": message,
+        "project_id": project_id,
+        "stage": stage,
+        "details": details,
     }
+    # Optional remediation hint — only added when supplied, so the core shape
+    # is unchanged for callers that don't pass one (plan §2a / §10).
+    if hint is not None:
+        error["hint"] = hint
+    return {"error": error}
 
 
 async def _api_error_handler(request, exc: ApiError):
+    # Log by severity: ERROR for >=500, WARNING for 4xx.
+    hint = getattr(exc, "hint", None)
+    if exc.status_code >= 500:
+        log.error("%s %s: %s", exc.status_code, exc.code, exc.message)
+    else:
+        log.warning("%s %s: %s", exc.status_code, exc.code, exc.message)
     return JSONResponse(
         status_code=exc.status_code,
-        content=_envelope(exc.code, exc.message, exc.project_id, exc.stage, exc.details),
+        content=_envelope(
+            exc.code, exc.message, exc.project_id, exc.stage, exc.details, hint
+        ),
     )
 
 
 async def _http_exception_handler(request, exc: StarletteHTTPException):
     detail = exc.detail
     headers = getattr(exc, "headers", None)
+    if exc.status_code >= 500:
+        log.error("%s HTTPException: %s", exc.status_code, detail)
+    else:
+        log.warning("%s HTTPException: %s", exc.status_code, detail)
     if isinstance(detail, dict):
         code = detail.get("code") or _STATUS_CODE.get(exc.status_code, "ERROR")
         return JSONResponse(
@@ -81,6 +101,7 @@ async def _http_exception_handler(request, exc: StarletteHTTPException):
                 detail.get("project_id"),
                 detail.get("stage"),
                 detail.get("details"),
+                detail.get("hint"),
             ),
             headers=headers,
         )
@@ -104,6 +125,7 @@ async def _validation_exception_handler(request, exc: RequestValidationError):
 
 
 async def _unhandled_exception_handler(request, exc: Exception):
+    log.exception("unhandled exception on %s %s", request.method, request.url.path)
     return JSONResponse(
         status_code=500,
         content=_envelope("INTERNAL", "Internal server error"),

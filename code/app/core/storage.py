@@ -89,3 +89,23 @@ def delete_project_dir(project_id: str) -> None:
     root = project_root(project_id)
     if os.path.isdir(root):
         shutil.rmtree(root, ignore_errors=True)
+
+
+# Labelled (species) outputs produced after Step 1. Removed for consent=2
+# ("unlabelled only") — everything through Step 1 (detectree/ortho/polygons/
+# crowns/clustering) is kept.
+_LABELLED_OUTPUT_KEYS = ["step2_output", "step3_output", "step4_output"]
+
+
+def prune_labelled_outputs(project_id: str, run: int = 1) -> list[str]:
+    """Delete only the labelled outputs (step2/3/4) of a run; keep everything
+    through Step 1. Idempotent — re-running just removes whatever remains.
+    Returns the list of directories removed (that existed)."""
+    paths = project_paths(project_id, run)
+    removed = []
+    for key in _LABELLED_OUTPUT_KEYS:
+        d = paths[key]
+        if os.path.isdir(d):
+            shutil.rmtree(d, ignore_errors=True)
+            removed.append(d)
+    return removed

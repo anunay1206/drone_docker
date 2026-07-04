@@ -24,6 +24,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
 from app.api.deps import require_service_token
+from app.core.logging import get_logger, request_id_var
 from app.core.storage import project_paths
 from app.db import models
 from app.db.session import get_db
@@ -32,6 +33,19 @@ from app.services.assets import asset_response_fields
 from app.workers.tasks import job_a_analyze, job_b_finalize
 
 router = APIRouter()
+
+log = get_logger("app.api")
+
+
+def _current_request_id():
+    """Server-side correlation id from the audit middleware ContextVar; never
+    crosses the Airflow boundary (stored side-channel on the Job row only)."""
+    try:
+        rid = request_id_var.get()
+    except LookupError:
+        return None
+    return rid if rid and rid != "-" else None
+
 
 # Identifies which workstation produced the asset (returned on 200; env-overridable).
 HOSTING_PLATFORM = os.getenv("TCP_HOSTING_PLATFORM", "act4dws4")
@@ -42,10 +56,10 @@ _ANALYZE_OK = {"UPLOADED", "ANALYZING", "AWAITING_LABELS", "FAILED"}
 _FINALIZE_OK = {"LABELS_SUBMITTED", "FINALIZING", "COMPLETED", "FAILED"}
 
 
-def _ok(project, asset_id: str, version) -> JSONResponse:
+def _ok(project, asset_id: str, version, stage: str | None = None) -> JSONResponse:
     return JSONResponse(
         status_code=200,
-        content=asset_response_fields(project, asset_id, version),
+        content=asset_response_fields(project, asset_id, version, stage=stage),
     )
 
 
@@ -110,7 +124,7 @@ def compute_analyze(
     key = f"compute:{idempotency_key or req.execution_id}"
     prior = _prior_job(db, project, key)
     if prior and prior.state == "SUCCEEDED":
-        return _ok(project, _analyze_asset_id(project), project.current_run or 1)
+        return _ok(project, _analyze_asset_id(project), project.current_run or 1, stage="analyze")
     if prior and prior.state in ("QUEUED", "RUNNING"):
         return _err(409, "CONFLICT_BUSY",
                     "A run with this Idempotency-Key is already in progress", project.id)
@@ -122,7 +136,8 @@ def compute_analyze(
 
     from datetime import datetime
     job = models.Job(project_id=project.id, type="analyze", state="RUNNING",
-                     started_at=datetime.utcnow(), celery_task_id=key)
+                     started_at=datetime.utcnow(), celery_task_id=key,
+                     request_id=_current_request_id())
     db.add(job); db.commit(); db.refresh(job)
     project.state = "ANALYZING"; project.error = None
     db.add(project); db.commit()
@@ -131,10 +146,12 @@ def compute_analyze(
         job_a_analyze.apply(args=[project.id, job.id]).get(propagate=True)
     except Exception as exc:
         db.refresh(project)
+        log.error("compute analyze failed project=%s job=%s stage=%s",
+                  project.id, job.id, job.current_stage, exc_info=True)
         return _err(500, "COMPUTE_FAILED", project.error or str(exc), project.id)
 
     db.refresh(project)
-    return _ok(project, _analyze_asset_id(project), project.current_run or 1)
+    return _ok(project, _analyze_asset_id(project), project.current_run or 1, stage="analyze")
 
 
 @router.post("/compute/finalize")
@@ -154,7 +171,7 @@ def compute_finalize(
     key = f"compute:{idempotency_key or req.execution_id}"
     prior = _prior_job(db, project, key)
     if prior and prior.state == "SUCCEEDED":
-        return _ok(project, _finalize_asset_id(project), project.current_run or 1)
+        return _ok(project, _finalize_asset_id(project), project.current_run or 1, stage="finalize")
     if prior and prior.state in ("QUEUED", "RUNNING"):
         return _err(409, "CONFLICT_BUSY",
                     "A run with this Idempotency-Key is already in progress", project.id)
@@ -167,7 +184,8 @@ def compute_finalize(
 
     from datetime import datetime
     job = models.Job(project_id=project.id, type="finalize", state="RUNNING",
-                     started_at=datetime.utcnow(), celery_task_id=key)
+                     started_at=datetime.utcnow(), celery_task_id=key,
+                     request_id=_current_request_id())
     db.add(job); db.commit(); db.refresh(job)
     project.state = "FINALIZING"; project.error = None
     db.add(project); db.commit()
@@ -176,7 +194,9 @@ def compute_finalize(
         job_b_finalize.apply(args=[project.id, job.id]).get(propagate=True)
     except Exception as exc:
         db.refresh(project)
+        log.error("compute finalize failed project=%s job=%s stage=%s",
+                  project.id, job.id, job.current_stage, exc_info=True)
         return _err(500, "COMPUTE_FAILED", project.error or str(exc), project.id)
 
     db.refresh(project)
-    return _ok(project, _finalize_asset_id(project), project.current_run or 1)
+    return _ok(project, _finalize_asset_id(project), project.current_run or 1, stage="finalize")

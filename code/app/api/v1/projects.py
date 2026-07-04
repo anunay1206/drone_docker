@@ -30,6 +30,39 @@ from app.services.project_service import (
 router = APIRouter()
 
 
+@router.get("/projects/mine")
+def my_projects(
+    db: Session = Depends(get_db),
+    user: str = Depends(require_api_key),
+):
+    """List the signed-in user's projects with their public FileBrowser share URL.
+
+    Powers the landing page "your past runs" list. ``user`` is the API-key/SSO
+    identity (single-tenant ``"default"`` until Google SSO lands, then the email).
+    """
+    from app.services.filebrowser_client import filebrowser_enabled, share_url
+
+    fb_on = filebrowser_enabled()
+    rows = (
+        db.query(models.Project)
+        .filter_by(user_id=user)
+        .order_by(models.Project.updated_at.desc(), models.Project.created_at.desc())
+        .all()
+    )
+    out = []
+    for p in rows:
+        hash_ = getattr(p, "share_hash", None)
+        out.append({
+            "project_id": p.id,
+            "name": p.name,
+            "state": p.state,
+            "run_name": getattr(p, "run_name", None),
+            "updated_at": p.updated_at.isoformat() if p.updated_at else None,
+            "files_url": share_url(hash_) if (fb_on and hash_) else None,
+        })
+    return {"projects": out}
+
+
 @router.get("/detectors")
 def get_detectors(user: str = Depends(require_api_key)):
     """List the registered Detectree2 detector weight files (+ availability/default)."""

@@ -16,7 +16,21 @@ Run the periodic cleanup scheduler:
 from celery import Celery
 from celery.schedules import crontab
 
+from app.core.logging import configure_logging
 from app.core.settings import settings
+
+# Side-channel logging: configure at import for the main process. Prefork forks
+# drop handlers, so also re-configure per worker process below.
+configure_logging()
+
+try:
+    from celery.signals import worker_process_init
+
+    @worker_process_init.connect
+    def _init_worker_logging(**_kw):
+        configure_logging(force=True)
+except Exception:  # pragma: no cover - signals import shouldn't fail
+    pass
 
 celery_app = Celery(
     "treecrown",
