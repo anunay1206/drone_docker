@@ -17,7 +17,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_project, require_api_key, resolve_project
-from app.core.logging import ERROR_CODES, get_logger, request_id_var
+from app.core.logging import ERROR_CODES, get_logger, naive_now, request_id_var
 from app.core.models_registry import resolve_backbone, resolve_model_path
 from app.core.storage import ensure_project_dirs
 from app.db import models
@@ -86,7 +86,7 @@ def _gate(db: Session, project, allowed: set[str], in_progress_state: str, actio
 def _new_job(db: Session, project, job_type: str):
     job = models.Job(
         project_id=project.id, type=job_type, state="QUEUED",
-        started_at=datetime.utcnow(), request_id=_current_request_id(),
+        started_at=naive_now(), request_id=_current_request_id(),
     )
     db.add(job)
     db.commit()
@@ -97,7 +97,7 @@ def _new_job(db: Session, project, job_type: str):
 def _fail_trigger(db: Session, project, job, exc: Exception) -> None:
     job.state = "FAILED"
     job.error = str(exc)
-    job.finished_at = datetime.utcnow()
+    job.finished_at = naive_now()
     project.state = "FAILED"
     project.error = str(exc)
     db.add_all([job, project])

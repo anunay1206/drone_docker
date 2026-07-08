@@ -11,6 +11,7 @@ from datetime import datetime
 from sqlalchemy import DateTime, Float, ForeignKey, Integer, JSON, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.core.logging import naive_now
 from app.db.base import Base
 
 
@@ -46,9 +47,9 @@ class Project(Base):
     # Step-1 (step2/3/4 removed). Idempotency marker — a pruned row is skipped.
     pruned_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=naive_now)
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+        DateTime, default=naive_now, onupdate=naive_now
     )
 
     orthos: Mapped[list["Ortho"]] = relationship(

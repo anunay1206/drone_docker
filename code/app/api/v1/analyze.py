@@ -22,7 +22,7 @@ from app.api.v1.runs import (
     _current_request_id,
     _validate_trigger_body,
 )
-from app.core.logging import ERROR_CODES, get_logger
+from app.core.logging import ERROR_CODES, get_logger, naive_now
 from app.db import models
 from app.db.session import get_db
 from app.schemas.project import AnalyzeTrigger
@@ -229,7 +229,7 @@ def run_analyze(
 
     job = models.Job(
         project_id=project.id, type="analyze", state="RUNNING",
-        started_at=datetime.utcnow(), celery_task_id=idempotency_key,
+        started_at=naive_now(), celery_task_id=idempotency_key,
         request_id=_current_request_id(),
     )
     db.add(job)

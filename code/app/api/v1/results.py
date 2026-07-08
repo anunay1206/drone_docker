@@ -9,6 +9,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_project
+from app.core.logging import naive_now
 from app.core.storage import project_paths
 from app.db.session import get_db
 from app.services.assets import analyze_asset_fields
@@ -111,7 +112,7 @@ def submit_consent(
             "project_id": project.id})
     _require_completed(project)
     project.consent = body.consent
-    project.consent_at = datetime.utcnow()
+    project.consent_at = naive_now()
     db.add(project)
     db.commit()
     return {"project_id": project.id, "consent": project.consent,

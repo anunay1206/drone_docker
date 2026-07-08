@@ -38,7 +38,12 @@ from datetime import datetime, timedelta
 # from the code/ directory (scripts/ is a sibling of app/).
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from app.core.logging import configure_logging               # noqa: E402
+from app.core.logging import (                               # noqa: E402
+    configure_logging,
+    naive_from_ts,
+    naive_now,
+    now_ist,
+)
 from app.core.settings import settings                       # noqa: E402
 from app.core.storage import (                               # noqa: E402
     delete_project_dir,
@@ -56,7 +61,7 @@ log = logging.getLogger("app.retention")
 def _log(msg: str) -> None:
     # Keep the print (cron redirect to retention.log) AND emit via the logger so
     # the central app.log / errors.jsonl capture it too (plan §2 / §8).
-    print(f"[retention {datetime.utcnow():%Y-%m-%dT%H:%M:%SZ}] {msg}", flush=True)
+    print(f"[retention {now_ist():%Y-%m-%d %H:%M:%S IST}] {msg}", flush=True)
     log.info(msg)
 
 
@@ -88,7 +93,7 @@ def _runs_of(project) -> range:
 
 
 def run(dry_run: bool = False) -> dict:
-    cutoff = datetime.utcnow() - timedelta(days=settings.retention_days)
+    cutoff = naive_now() - timedelta(days=settings.retention_days)
     summary = {"deleted": [], "pruned": [], "skipped_busy": [],
                "retained": [], "orphans": [], "dry_run": dry_run}
     db = SessionLocal()
@@ -119,7 +124,7 @@ def run(dry_run: bool = False) -> dict:
                         prune_labelled_outputs(p.id, r)
                     db.query(models.ClusterLabel).filter_by(project_id=p.id).delete()
                     p.state = "PRUNED"
-                    p.pruned_at = datetime.utcnow()
+                    p.pruned_at = naive_now()
                     db.add(p)
                     db.commit()                               # per-project commit
                 except Exception:
@@ -148,7 +153,7 @@ def run(dry_run: bool = False) -> dict:
                 if name in live_ids or not os.path.isdir(full):
                     continue
                 try:
-                    mtime = datetime.utcfromtimestamp(os.path.getmtime(full))
+                    mtime = naive_from_ts(os.path.getmtime(full))
                 except OSError:
                     continue
                 if mtime < cutoff:

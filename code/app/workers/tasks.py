@@ -24,7 +24,7 @@ from datetime import datetime
 # inside the tasks. setdefault so an explicit env override still wins.
 os.environ.setdefault("TQDM_DISABLE", "1")
 
-from app.core.logging import get_logger, with_context
+from app.core.logging import get_logger, naive_now, with_context
 from app.core.storage import ensure_project_dirs, project_paths, reset_dirs
 from app.db import models
 from app.db.session import SessionLocal
@@ -143,7 +143,7 @@ def job_a_analyze(self, project_id: str, job_id: str):
         )
 
         logf = open(os.path.join(paths["logs"], "analyze.log"), "a", buffering=1)
-        _set_job(db, job, state="RUNNING", started_at=datetime.utcnow(),
+        _set_job(db, job, state="RUNNING", started_at=naive_now(),
                  celery_task_id=_job_tracking_id(job, self.request.id),
                  log_path=logf.name)
         _set_state(db, project, "ANALYZING")
@@ -208,7 +208,7 @@ def job_a_analyze(self, project_id: str, job_id: str):
         db.commit()
 
         _set_job(db, job, state="SUCCEEDED", current_stage="done",
-                 progress=1.0, finished_at=datetime.utcnow())
+                 progress=1.0, finished_at=naive_now())
         _set_state(db, project, "AWAITING_LABELS")
 
       except Exception as e:
@@ -245,7 +245,7 @@ def job_b_finalize(self, project_id: str, job_id: str):
         reset_dirs(project_id, ["step2_output", "step3_output", "step4_output"], run)
 
         logf = open(os.path.join(paths["logs"], "finalize.log"), "a", buffering=1)
-        _set_job(db, job, state="RUNNING", started_at=datetime.utcnow(),
+        _set_job(db, job, state="RUNNING", started_at=naive_now(),
                  celery_task_id=_job_tracking_id(job, self.request.id),
                  log_path=logf.name)
         _set_state(db, project, "FINALIZING")
@@ -280,7 +280,7 @@ def job_b_finalize(self, project_id: str, job_id: str):
                 log.warning("stac emission skipped", exc_info=True)
 
         _set_job(db, job, state="SUCCEEDED", current_stage="done",
-                 progress=1.0, finished_at=datetime.utcnow())
+                 progress=1.0, finished_at=naive_now())
         _set_state(db, project, "COMPLETED")
 
       except Exception as e:
@@ -329,7 +329,7 @@ def _fail(db, project_id: str, job_id: str, exc: Exception):
     if started_at is not None:
         try:
             duration_ms = int(
-                (datetime.utcnow() - started_at).total_seconds() * 1000
+                (naive_now() - started_at).total_seconds() * 1000
             )
         except Exception:
             duration_ms = None
@@ -345,7 +345,7 @@ def _fail(db, project_id: str, job_id: str, exc: Exception):
         # self-sufficient for RCA — otherwise the file just stops mid-step and
         # the error lives only in the DB Job.error column.
         _write_failure_to_log(getattr(job, "log_path", None), job_id, exc, tb)
-        _set_job(db, job, state="FAILED", error=tb, finished_at=datetime.utcnow())
+        _set_job(db, job, state="FAILED", error=tb, finished_at=naive_now())
     if project:
         _set_state(db, project, "FAILED", error=str(exc))
 
@@ -356,7 +356,8 @@ def _write_failure_to_log(log_path, job_id: str, exc: Exception, tb: str) -> Non
     if not log_path:
         return
     try:
-        ts = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+        from app.core.logging import now_ist
+        ts = now_ist().strftime("%Y-%m-%d %H:%M:%S IST")
         with open(log_path, "a", buffering=1) as f:
             f.write(
                 f"\n{'='*70}\n"

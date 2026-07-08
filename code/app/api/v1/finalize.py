@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_project, require_api_key, require_service_token, resolve_project
 from app.api.v1.results import build_results_payload
 from app.api.v1.runs import _current_request_id
-from app.core.logging import get_logger
+from app.core.logging import get_logger, naive_now
 from app.db import models
 from app.db.session import get_db
 from app.schemas.project import AnalyzeTrigger, FinalizeTrigger
@@ -92,7 +92,7 @@ def run_finalize(
     previous_state = project.state
     job = models.Job(
         project_id=project.id, type="finalize", state="RUNNING",
-        started_at=datetime.utcnow(), celery_task_id=idempotency_key,
+        started_at=naive_now(), celery_task_id=idempotency_key,
         request_id=_current_request_id(),
     )
     db.add(job)

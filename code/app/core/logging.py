@@ -24,9 +24,50 @@ import logging
 import logging.handlers
 import os
 import socket
+import time
 import uuid
+from datetime import datetime, timedelta, timezone
 
 from app.core.settings import settings
+
+# ── India Standard Time (fixed +05:30, no DST) ─────────────────────────
+# All LOG output is rendered in IST for the server administrator. DB columns
+# stay in UTC (retention math is utcnow-vs-utcnow) so there is NO drift — only
+# the human-readable log timestamps are localised. See docs/ERROR_LOGGING_PLAN.md.
+IST = timezone(timedelta(hours=5, minutes=30))
+_IST_OFFSET_S = 5 * 3600 + 30 * 60
+_IST_DATEFMT = "%Y-%m-%d %H:%M:%S IST"
+
+
+def now_ist() -> datetime:
+    """Timezone-aware current time in IST (for log lines / ledger timestamps)."""
+    return datetime.now(IST)
+
+
+def ist_stamp() -> str:
+    """ISO-8601 IST timestamp string, e.g. 2026-07-08T11:51:25+05:30."""
+    return datetime.now(IST).strftime("%Y-%m-%dT%H:%M:%S%z")
+
+
+def naive_now() -> datetime:
+    """Naive datetime holding IST wall-clock — drop-in replacement for
+    ``datetime.utcnow()`` so DB columns AND the retention cutoff are both IST
+    (IST-vs-IST comparison → zero drift). Naive (no tzinfo) to match SQLite's
+    naive storage and the existing utcnow() call convention."""
+    return datetime.now(IST).replace(tzinfo=None)
+
+
+def naive_from_ts(epoch_seconds: float) -> datetime:
+    """Epoch seconds → naive IST datetime (for filesystem mtime comparisons that
+    must line up with naive_now())."""
+    return datetime.fromtimestamp(epoch_seconds, IST).replace(tzinfo=None)
+
+
+def _ist_converter(timestamp):
+    """logging Formatter.converter → struct_time in IST wall-clock. Assigned to
+    formatter INSTANCES (not the class) so it isn't bound as a method."""
+    base = timestamp if timestamp is not None else time.time()
+    return time.gmtime(base + _IST_OFFSET_S)
 
 # ── correlation-id context ─────────────────────────────────────────────
 # ContextVars default to "-" so a LogRecord always has a value even outside a
@@ -144,8 +185,11 @@ def configure_logging(force: bool = False) -> None:
     root.setLevel(level)
 
     context_filter = ContextFilter()
-    text_formatter = logging.Formatter(_TEXT_FORMAT)
-    json_formatter = JsonFormatter()
+    text_formatter = logging.Formatter(_TEXT_FORMAT, datefmt=_IST_DATEFMT)
+    json_formatter = JsonFormatter(datefmt=_IST_DATEFMT)
+    # Render every log timestamp in IST (instance-level converter — see above).
+    text_formatter.converter = _ist_converter
+    json_formatter.converter = _ist_converter
     line_formatter = json_formatter if settings.log_json else text_formatter
 
     # stdout — for container log collection.

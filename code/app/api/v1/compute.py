@@ -24,7 +24,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
 from app.api.deps import require_service_token
-from app.core.logging import get_logger, request_id_var
+from app.core.logging import get_logger, naive_now, request_id_var
 from app.core.storage import project_paths
 from app.db import models
 from app.db.session import get_db
@@ -136,7 +136,7 @@ def compute_analyze(
 
     from datetime import datetime
     job = models.Job(project_id=project.id, type="analyze", state="RUNNING",
-                     started_at=datetime.utcnow(), celery_task_id=key,
+                     started_at=naive_now(), celery_task_id=key,
                      request_id=_current_request_id())
     db.add(job); db.commit(); db.refresh(job)
     project.state = "ANALYZING"; project.error = None
@@ -184,7 +184,7 @@ def compute_finalize(
 
     from datetime import datetime
     job = models.Job(project_id=project.id, type="finalize", state="RUNNING",
-                     started_at=datetime.utcnow(), celery_task_id=key,
+                     started_at=naive_now(), celery_task_id=key,
                      request_id=_current_request_id())
     db.add(job); db.commit(); db.refresh(job)
     project.state = "FINALIZING"; project.error = None

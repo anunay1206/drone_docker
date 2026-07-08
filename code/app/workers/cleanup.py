@@ -15,6 +15,7 @@ import os
 import shutil
 from datetime import datetime, timedelta
 
+from app.core.logging import naive_from_ts, naive_now
 from app.core.settings import settings
 from app.core.storage import delete_project_dir
 from app.db import models
@@ -56,7 +57,7 @@ def cleanup_expired_projects() -> dict:
     if not acquired:
         return {"skipped": "another cleanup run holds the lock"}
 
-    cutoff = datetime.utcnow() - timedelta(days=settings.retention_days)
+    cutoff = naive_now() - timedelta(days=settings.retention_days)
     deleted, skipped = [], []
     try:
         db = SessionLocal()
@@ -102,7 +103,7 @@ def _sweep_orphan_folders(live_ids: set, cutoff: datetime) -> list:
         if not os.path.isdir(path) or name in live_ids:
             continue
         try:
-            mtime = datetime.utcfromtimestamp(os.path.getmtime(path))
+            mtime = naive_from_ts(os.path.getmtime(path))
         except OSError:
             continue
         if mtime < cutoff:

@@ -13,7 +13,7 @@ import os
 import threading
 from datetime import datetime, timezone
 
-from app.core.logging import get_logger
+from app.core.logging import get_logger, now_ist
 from app.core.settings import settings
 
 log = get_logger("app.activity")
@@ -42,9 +42,9 @@ def append(
 ) -> None:
     """Append one audit record. Never raises."""
     try:
-        now = datetime.now(timezone.utc)
+        now = now_ist()   # IST for the admin; daily file is IST-dated too
         record = {
-            "ts": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "ts": now.strftime("%Y-%m-%dT%H:%M:%S%z"),
             "email": email or "anonymous",
             "user_id": user_id,
             "action": action,
