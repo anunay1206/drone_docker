@@ -1,0 +1,409 @@
+<title>Progress Update | 9–15 July 2026</title>
+<style>
+  :root {
+    --ink:    #1c2219;
+    --paper:  #f5f3ee;
+    --card:   #fffdf7;
+    --green:  #2f6b3f;
+    --green-d:#1a3a24;
+    --green-l:#eaf1e7;
+    --sage:   #4a7c59;
+    --muted:  #6f7468;
+    --line:   #dedad0;
+    --amber:  #b4791f;
+    --tag-bg: #e8f0e5;
+    --shadow: rgba(28,34,25,.10);
+  }
+  @media(prefers-color-scheme:dark){
+    :root{
+      --ink:#e8e5de;--paper:#141a12;--card:#1c2419;
+      --green:#6daa7e;--green-d:#9dcfaa;--green-l:#1e2e1e;
+      --sage:#7aaa89;--muted:#8a9e80;--line:#2a3428;
+      --amber:#d4a04a;--tag-bg:#1e2e1e;--shadow:rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="dark"]{
+    --ink:#e8e5de;--paper:#141a12;--card:#1c2419;
+    --green:#6daa7e;--green-d:#9dcfaa;--green-l:#1e2e1e;
+    --sage:#7aaa89;--muted:#8a9e80;--line:#2a3428;
+    --amber:#d4a04a;--tag-bg:#1e2e1e;--shadow:rgba(0,0,0,.35);
+  }
+  :root[data-theme="light"]{
+    --ink:#1c2219;--paper:#f5f3ee;--card:#fffdf7;
+    --green:#2f6b3f;--green-d:#1a3a24;--green-l:#eaf1e7;
+    --sage:#4a7c59;--muted:#6f7468;--line:#dedad0;
+    --amber:#b4791f;--tag-bg:#e8f0e5;--shadow:rgba(28,34,25,.10);
+  }
+
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--paper);color:var(--ink);
+    height:100vh;overflow:hidden;
+    display:flex;flex-direction:column;
+  }
+
+  /* ── nav bar ── */
+  .topbar{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:10px 24px;border-bottom:1px solid var(--line);
+    background:var(--card);flex-shrink:0;
+  }
+  .topbar-left{display:flex;align-items:center;gap:14px}
+  .logo{font-family:Georgia,serif;font-size:14px;font-weight:600;color:var(--green)}
+  .deck-title{font-size:13px;color:var(--muted)}
+  .topbar-right{display:flex;align-items:center;gap:10px}
+  .slide-counter{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;min-width:48px;text-align:right}
+  .nav-btn{
+    background:none;border:1px solid var(--line);border-radius:4px;
+    padding:5px 10px;cursor:pointer;color:var(--ink);font-size:13px;
+    transition:background .12s,border-color .12s;
+  }
+  .nav-btn:hover{background:var(--green-l);border-color:var(--sage)}
+  .nav-btn:disabled{opacity:.35;cursor:default}
+
+  /* ── slides viewport ── */
+  .deck{flex:1;position:relative;overflow:hidden}
+  .slide{
+    position:absolute;inset:0;padding:48px 64px;
+    display:flex;flex-direction:column;justify-content:center;
+    opacity:0;pointer-events:none;
+    transition:opacity .25s ease, transform .25s ease;
+    transform:translateX(32px);
+  }
+  .slide.active{opacity:1;pointer-events:auto;transform:none}
+  .slide.exit-left{opacity:0;transform:translateX(-32px)}
+
+  /* ── progress bar ── */
+  .progress-rail{height:3px;background:var(--line);flex-shrink:0}
+  .progress-fill{height:100%;background:var(--green);transition:width .3s ease}
+
+  /* ── typography ── */
+  .eyebrow{
+    font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--amber);margin-bottom:14px;
+  }
+  h1.slide-title{
+    font-family:Georgia,"Times New Roman",serif;
+    font-size:clamp(30px,4vw,52px);line-height:1.05;font-weight:600;
+    color:var(--ink);text-wrap:balance;margin-bottom:12px;
+  }
+  h2.slide-title{
+    font-family:Georgia,"Times New Roman",serif;
+    font-size:clamp(22px,3vw,36px);line-height:1.1;font-weight:600;
+    color:var(--ink);text-wrap:balance;margin-bottom:16px;
+  }
+  .subtitle{font-size:15px;color:var(--muted);max-width:560px;line-height:1.6;margin-bottom:0}
+  .meta{font-size:13px;color:var(--muted);margin-top:18px;display:flex;gap:18px;flex-wrap:wrap}
+  .meta span{display:flex;align-items:center;gap:5px}
+  .dot{width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block}
+
+  /* ── layout helpers ── */
+  .two-col{display:grid;grid-template-columns:1fr 1fr;gap:32px;align-items:start}
+  .three-col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;align-items:start}
+  .body-text{font-size:14px;color:var(--muted);line-height:1.7;max-width:640px}
+
+  /* ── cards ── */
+  .card{
+    background:var(--card);border:1px solid var(--line);border-radius:6px;
+    padding:20px 22px;box-shadow:0 1px 3px var(--shadow);
+  }
+  .card h3{font-family:Georgia,serif;font-size:15px;font-weight:600;color:var(--green);margin-bottom:8px}
+  .card p{font-size:13px;color:var(--muted);line-height:1.65}
+  .card .stat{font-size:28px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums;line-height:1;margin-bottom:4px}
+  .card .stat-label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em}
+
+  /* ── tag ── */
+  .tag{
+    display:inline-block;background:var(--tag-bg);color:var(--green);
+    border-radius:20px;padding:2px 10px;font-size:11.5px;font-weight:600;
+    margin:2px 3px 2px 0;
+  }
+  .tag.amber{background:#fdf3e3;color:var(--amber)}
+  :root[data-theme="dark"] .tag.amber,:root[data-theme="dark"] .tag.amber{background:#2e2010;color:var(--amber)}
+  @media(prefers-color-scheme:dark){.tag.amber{background:#2e2010;color:var(--amber)}}
+
+  /* ── bullet list ── */
+  .blist{list-style:none;margin-top:8px}
+  .blist li{
+    font-size:13.5px;color:var(--muted);padding:6px 0 6px 18px;
+    position:relative;border-bottom:1px solid var(--line);line-height:1.55;
+  }
+  .blist li:last-child{border-bottom:0}
+  .blist li::before{content:'';position:absolute;left:0;top:13px;
+    width:6px;height:6px;border-radius:50%;background:var(--sage)}
+  .blist li strong{color:var(--ink)}
+
+  /* ── code pill ── */
+  code{background:var(--green-l);color:var(--green);padding:1px 6px;
+    border-radius:3px;font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace}
+
+  /* ── title slide specific ── */
+  .title-slide{background:var(--paper)}
+  .title-rule{width:48px;height:3px;background:var(--green);border-radius:2px;margin-bottom:28px}
+  .week-badge{
+    display:inline-block;border:1px solid var(--green);color:var(--green);
+    border-radius:20px;padding:4px 14px;font-size:12px;font-weight:600;
+    margin-bottom:22px;background:var(--green-l);
+  }
+
+  /* ── stat row ── */
+  .stat-row{display:flex;gap:20px;flex-wrap:wrap;margin-top:20px}
+  .stat-box{
+    background:var(--card);border:1px solid var(--line);border-radius:6px;
+    padding:14px 20px;min-width:120px;
+  }
+  .stat-box .n{font-size:26px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums}
+  .stat-box .l{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-top:2px}
+
+  /* ── warn box ── */
+  .warn-box{
+    background:#fdf6ec;border:1px solid #e8c88a;border-left:3px solid var(--amber);
+    border-radius:5px;padding:12px 16px;font-size:13px;color:#6b4e1a;
+    margin-top:16px;line-height:1.55;
+  }
+  :root[data-theme="dark"] .warn-box{background:#2a1e0a;border-color:#5a3e10;border-left-color:var(--amber);color:#c4984a}
+  @media(prefers-color-scheme:dark){.warn-box{background:#2a1e0a;border-color:#5a3e10;border-left-color:var(--amber);color:#c4984a}}
+
+  .ok-box{
+    background:var(--green-l);border:1px solid #b8d8c0;border-left:3px solid var(--green);
+    border-radius:5px;padding:12px 16px;font-size:13px;color:var(--green-d);
+    margin-top:16px;line-height:1.55;
+  }
+  :root[data-theme="dark"] .ok-box{background:#1a2e1e;border-color:#2a5a34;border-left-color:var(--green);color:var(--green)}
+  @media(prefers-color-scheme:dark){.ok-box{background:#1a2e1e;border-color:#2a5a34;border-left-color:var(--green);color:var(--green)}}
+
+  /* keyboard hint */
+  .kbd-hint{position:fixed;bottom:16px;right:20px;font-size:11px;color:var(--muted);pointer-events:none}
+</style>
+
+<!-- Slide deck -->
+<div class="topbar">
+  <div class="topbar-left">
+    <span class="logo">CoRE Stack</span>
+    <span class="deck-title">Tree Crown Detection Pipeline — Weekly Update</span>
+  </div>
+  <div class="topbar-right">
+    <button class="nav-btn" id="prevBtn" onclick="navigate(-1)" disabled>← Prev</button>
+    <span class="slide-counter" id="counter">1 / 6</span>
+    <button class="nav-btn" id="nextBtn" onclick="navigate(1)">Next →</button>
+  </div>
+</div>
+
+<div class="progress-rail"><div class="progress-fill" id="prog" style="width:16.6%"></div></div>
+
+<div class="deck" id="deck">
+
+  <!-- SLIDE 1: Title -->
+  <div class="slide title-slide active" id="s1">
+    <div class="week-badge">9 July – 15 July 2026</div>
+    <div class="title-rule"></div>
+    <h1 class="slide-title">Weekly Progress<br>Update</h1>
+    <p class="subtitle">Tree Crown Detection Pipeline · Drone Imagery · IIT Delhi CoRE Stack</p>
+    <div class="meta">
+      <span><span class="dot"></span> Anunay Sharma</span>
+      <span><span class="dot"></span> M.Tech CSE, IIT Delhi</span>
+      <span><span class="dot"></span> Supervisor: Prof. Aaditeshwar Seth</span>
+    </div>
+  </div>
+
+  <!-- SLIDE 2: Karnataka GBA Testing -->
+  <div class="slide" id="s2">
+    <div class="eyebrow">Development 01</div>
+    <h2 class="slide-title">Karnataka GBA Imagery Testing</h2>
+    <div class="two-col">
+      <div>
+        <p class="body-text">Downloaded drone imagery from the <strong style="color:var(--ink)">GBA Karnataka GIS WMS server</strong> for the Tailuru forest area and ran it end-to-end through the pipeline for the first time on real-world aerial data.</p>
+        <ul class="blist" style="margin-top:16px">
+          <li><strong>Source:</strong> Karnataka GIS WMS — GetMap API, EPSG:32643</li>
+          <li><strong>Area:</strong> Tailuru forest, Karnataka</li>
+          <li><strong>Fix applied:</strong> <code>TRANSPARENT=false</code> + tighter BBOX to avoid nodata borders</li>
+          <li><strong>Image:</strong> tailuru_center.tif — 48 MB, 4096×4096 px</li>
+          <li><strong>Tiling:</strong> tile_size=30 → 7,620 tiles generated</li>
+        </ul>
+      </div>
+      <div>
+        <div class="stat-row" style="flex-direction:column;gap:14px">
+          <div class="card">
+            <div class="stat">7,620</div>
+            <div class="stat-label">Total tiles generated</div>
+          </div>
+          <div class="card">
+            <div class="stat">48 MB</div>
+            <div class="stat-label">Source orthomosaic</div>
+          </div>
+          <div class="card">
+            <div class="stat">32643</div>
+            <div class="stat-label">CRS (UTM Zone 43N)</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 3: Results -->
+  <div class="slide" id="s3">
+    <div class="eyebrow">Results</div>
+    <h2 class="slide-title">Pipeline Run Results</h2>
+    <div class="two-col">
+      <div>
+        <p class="body-text">The pipeline ran successfully. However, a large fraction of tiles were skipped due to being over the <strong style="color:var(--ink)">nodata threshold (30%)</strong> — most of the downloaded area contained empty/transparent border pixels with no actual forest imagery.</p>
+        <div class="warn-box">
+          Most tiles had nodata ratio = 1.0 (100% empty). This is expected given the rectangular download area — real forest coverage is non-rectangular and leaves large border gaps.
+        </div>
+        <div class="ok-box">
+          Pipeline validated end-to-end on real GBA data. Detection model ran on all non-empty tiles. GPU utilization confirmed at 93% during Step 3 predictions.
+        </div>
+      </div>
+      <div>
+        <div class="card" style="margin-bottom:14px">
+          <h3>Tile Status</h3>
+          <p>Majority skipped — nodata ratio exceeded 0.3 threshold. Border tiles from rectangular WMS crop have no actual imagery.</p>
+        </div>
+        <div class="card" style="margin-bottom:14px">
+          <h3>Key Learnings</h3>
+          <p>Need tighter polygon-bounded crop instead of rectangular BBOX, or a higher-resolution source to reduce nodata percentage in each tile.</p>
+        </div>
+        <div class="card">
+          <h3>Next Step</h3>
+          <p>Use actual forest boundary polygon to crop imagery before tiling, reducing skipped tiles significantly.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 4: Workstation Integration -->
+  <div class="slide" id="s4">
+    <div class="eyebrow">Development 02</div>
+    <h2 class="slide-title">Workstation Integration & GPU Setup</h2>
+    <div class="two-col">
+      <div>
+        <p class="body-text">Gained SSH access to the GPU workstation and set up the pipeline environment locally with NVIDIA GPU support, enabling significantly faster inference compared to CPU.</p>
+        <ul class="blist" style="margin-top:16px">
+          <li><strong>NVIDIA Container Toolkit</strong> installed in WSL2</li>
+          <li>Docker image updated to <code>cu128</code> tag (CUDA 12.8)</li>
+          <li><code>torch.cuda.is_available()</code> confirmed <strong>True</strong></li>
+          <li>GPU-Util reached <strong>93%</strong> during Step 3 predictions (GTX 1650 Ti)</li>
+          <li>GPU reservation added to <code>docker-compose.hub.yml</code></li>
+          <li>SSH access set up + code transferred to lab workstation</li>
+        </ul>
+        <div class="warn-box" style="margin-top:14px">
+          Local GPU (GTX 1650 Ti) not sufficient for large datasets — 7,620 tiles ran for 1+ hour without completion. Workstation GPU needed for production-scale runs.
+        </div>
+      </div>
+      <div>
+        <div class="card" style="margin-bottom:14px">
+          <h3>Before (CPU)</h3>
+          <p>Step 3 predictions on 7,620 tiles: running for <strong style="color:var(--amber)">1+ hour</strong> with no completion.</p>
+        </div>
+        <div class="card" style="margin-bottom:14px">
+          <h3>After (GPU)</h3>
+          <p>Same workload: <strong style="color:var(--green)">93% GPU-Util</strong> on GTX 1650 Ti. Significantly faster — workstation GPU will be faster still.</p>
+        </div>
+        <div class="card">
+          <h3>Current Setup</h3>
+          <p>Code transferred to lab workstation. Pipeline ready to run at scale on workstation GPU — significantly more powerful than local GTX 1650 Ti.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 5: Guest Login -->
+  <div class="slide" id="s5">
+    <div class="eyebrow">Development 03</div>
+    <h2 class="slide-title">Guest Login on Frontend</h2>
+    <div class="two-col">
+      <div>
+        <p class="body-text">Added a guest login flow to the frontend so the pipeline remains accessible without requiring Google SSO credentials, while keeping the full auth path ready for when a Client ID is configured.</p>
+        <ul class="blist" style="margin-top:16px">
+          <li><strong>Auth gate</strong> (landing page) always shown on load</li>
+          <li><strong>"Continue as Guest"</strong> button — bypasses SSO, enters pipeline directly</li>
+          <li>Google login button shown only when <code>GOOGLE_CLIENT_ID</code> is set</li>
+          <li>Both flows coexist — no backend changes required</li>
+          <li>Guest sessions not attributed to any account</li>
+        </ul>
+        <div class="ok-box" style="margin-top:14px">
+          Pipeline is now usable by any team member without requiring Google OAuth setup.
+        </div>
+      </div>
+      <div>
+        <div class="card" style="margin-bottom:14px">
+          <h3>Without Client ID</h3>
+          <p>Landing page shows <strong style="color:var(--ink)">"Continue as Guest"</strong> only. One click to enter the pipeline.</p>
+        </div>
+        <div class="card" style="margin-bottom:14px">
+          <h3>With Client ID</h3>
+          <p>Both buttons shown — <strong style="color:var(--green)">Sign in with Google</strong> for attributed runs + guest option.</p>
+        </div>
+        <div class="card">
+          <h3>Config</h3>
+          <p>Set <code>GOOGLE_CLIENT_ID</code> in <code>frontend/config.js</code> to enable Google SSO. Empty = guest mode only.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 6: Summary -->
+  <div class="slide" id="s6">
+    <div class="eyebrow">Summary</div>
+    <h2 class="slide-title">Week Summary & Next Steps</h2>
+    <div class="two-col">
+      <div>
+        <p style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:10px">Done this week</p>
+        <ul class="blist">
+          <li>Tested pipeline on real GBA Karnataka WMS imagery (Tailuru forest)</li>
+          <li>Identified nodata tile issue — pipeline handles gracefully, skips empty tiles</li>
+          <li>GPU pipeline working — 93% utilisation, CUDA 12.8</li>
+          <li>SSH access + code transfer to lab workstation completed</li>
+          <li>Guest login added to frontend</li>
+          <li>Storage manifest schema updated to v2.0 (STAC-style, per Susmit's template)</li>
+        </ul>
+      </div>
+      <div>
+        <p style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:10px">Next steps</p>
+        <ul class="blist">
+          <li>Run pipeline at scale on workstation GPU</li>
+          <li>Crop imagery using forest polygon boundary to reduce nodata tiles</li>
+          <li>Test with more orthomosaics from GBA network</li>
+          <li>Google SSO integration</li>
+          <li>GPU compatibility improvements for production</li>
+          <li>Implement storage cleanup script using manifest v2.0 schema</li>
+        </ul>
+        <div class="ok-box" style="margin-top:16px">
+          End-to-end pipeline validated on real aerial imagery for the first time. GPU acceleration confirmed working.
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<span class="kbd-hint">← → arrow keys to navigate</span>
+
+<script>
+  const TOTAL = 6;
+  let cur = 1;
+
+  function navigate(dir){
+    const next = cur + dir;
+    if(next < 1 || next > TOTAL) return;
+    const prev = document.getElementById('s' + cur);
+    prev.classList.remove('active');
+    if(dir > 0) prev.classList.add('exit-left');
+    setTimeout(()=>{ prev.classList.remove('exit-left'); prev.style.transform='translateX(32px)'; prev.style.opacity='0'; setTimeout(()=>{prev.style.transform='';prev.style.opacity='';},10); }, 250);
+    cur = next;
+    const el = document.getElementById('s' + cur);
+    el.style.transform = dir > 0 ? 'translateX(32px)' : 'translateX(-32px)';
+    el.style.opacity = '0';
+    requestAnimationFrame(()=>{ requestAnimationFrame(()=>{ el.classList.add('active'); el.style.transform=''; el.style.opacity=''; }); });
+    document.getElementById('counter').textContent = cur + ' / ' + TOTAL;
+    document.getElementById('prog').style.width = (cur/TOTAL*100) + '%';
+    document.getElementById('prevBtn').disabled = cur === 1;
+    document.getElementById('nextBtn').disabled = cur === TOTAL;
+  }
+
+  document.addEventListener('keydown', e=>{
+    if(e.key === 'ArrowRight' || e.key === 'ArrowDown') navigate(1);
+    if(e.key === 'ArrowLeft'  || e.key === 'ArrowUp')   navigate(-1);
+  });
+</script>
