@@ -1,0 +1,218 @@
+{
+  "manifest_version": "2.0",
+  "generated_at": "2026-07-09T16:02:00+05:30",
+
+  "_spec": "GENERIC storage manifest — drone-pipeline instance",
+
+  "producer": {
+    "app": "drone-pipeline",
+    "app_version": "0.1.0",
+    "emitter": "code/app/services/storage_manifest.py",
+    "domain": "aerial-imagery"
+  },
+
+  "entity": {
+    "_doc": "One project/job instance — analogous to a STAC Collection Item.",
+    "id": "a3f2c1d4-9e21-4b7a-bc01-1234567890ab",
+    "type": "dataset-instance",
+    "title": "North block June 2024",
+    "state": "COMPLETED",
+    "in_progress": false,
+    "created_at": "2026-06-01T08:00:00Z",
+    "updated_at": "2026-06-02T15:30:00Z",
+    "datetime": {
+      "_doc": "Temporal extent of the DATA (not of processing).",
+      "start": "2024-06-01T00:00:00Z",
+      "end": "2024-06-01T23:59:59Z"
+    },
+    "bbox": [76.12, 13.45, 76.18, 13.51],
+    "geometry": {
+      "type": "Polygon",
+      "coordinates": [[[76.12,13.45],[76.18,13.45],[76.18,13.51],[76.12,13.51],[76.12,13.45]]]
+    },
+    "owner": {
+      "principal": "api_key:xxxx1234",
+      "org": null
+    }
+  },
+
+  "storage": {
+    "_doc": "Physical footprint. total_size_bytes = sum of all asset size_bytes.",
+    "root": "/data/storage/projects/a3f2c1d4-9e21-4b7a-bc01-1234567890ab",
+    "total_size_bytes": 2147483648,
+    "asset_count": 7
+  },
+
+  "_groups_doc": "Optional hierarchy grouping assets by run/stage without the service needing domain knowledge.",
+  "groups": [
+    {
+      "id": "run_1",
+      "parent": null,
+      "role": "run",
+      "title": "Run 1 — baseline",
+      "datetime": { "start": "2026-06-01T09:00:00Z", "end": "2026-06-01T10:45:00Z" },
+      "properties": {
+        "model_key": "urban_cambridge",
+        "tile_size": 10,
+        "k_list": [2, 4, 6, 8, 10],
+        "chosen_k": 6,
+        "duration_seconds": 6300
+      }
+    },
+    {
+      "id": "run_1_step1", "parent": "run_1", "role": "stage",
+      "title": "Step 1 — Crown Detection",
+      "datetime": { "start": "2026-06-01T09:00:00Z", "end": "2026-06-01T09:30:00Z" },
+      "properties": {}
+    },
+    {
+      "id": "run_1_step2", "parent": "run_1", "role": "stage",
+      "title": "Step 2 — Feature Extraction",
+      "datetime": { "start": "2026-06-01T09:30:00Z", "end": "2026-06-01T09:50:00Z" },
+      "properties": {}
+    },
+    {
+      "id": "run_1_step3", "parent": "run_1", "role": "stage",
+      "title": "Step 3 — Clustering",
+      "datetime": { "start": "2026-06-01T09:50:00Z", "end": "2026-06-01T10:30:00Z" },
+      "properties": {}
+    },
+    {
+      "id": "run_1_step4", "parent": "run_1", "role": "stage",
+      "title": "Step 4 — Export",
+      "datetime": { "start": "2026-06-01T10:30:00Z", "end": "2026-06-01T10:45:00Z" },
+      "properties": {}
+    }
+  ],
+
+  "_assets_doc": "Flat list of uniform asset objects. Service inspects only generic fields.",
+  "assets": [
+    {
+      "key": "orthomosaic_north_block",
+      "href": "/data/storage/projects/a3f2c1d4-.../ortho/north_block.tif",
+      "title": "North block orthomosaic",
+      "media_type": "image/tiff; application=geotiff",
+      "roles": ["source", "raw"],
+      "data_class": "raw-input",
+      "size_bytes": 1500000000,
+      "created_at": "2026-06-01T08:10:00Z",
+      "group": null,
+      "checksum": null,
+      "retention": null,
+      "properties": { "epsg": 32643, "width_px": 24000, "height_px": 18000, "bands": 3 }
+    },
+    {
+      "key": "run1_step1_crowns",
+      "href": "/data/storage/projects/a3f2c1d4-.../run_1/step1_output/crowns.geojson",
+      "title": "Detected tree crowns",
+      "media_type": "application/geo+json",
+      "roles": ["data", "intermediate"],
+      "data_class": "intermediate",
+      "size_bytes": 120000000,
+      "created_at": "2026-06-01T09:30:00Z",
+      "group": "run_1_step1",
+      "checksum": null,
+      "retention": null,
+      "properties": { "feature_count": 4821 }
+    },
+    {
+      "key": "run1_step2_features",
+      "href": "/data/storage/projects/a3f2c1d4-.../run_1/step2_output/features.npy",
+      "title": "Crown feature embeddings",
+      "media_type": "application/octet-stream",
+      "roles": ["data", "intermediate"],
+      "data_class": "intermediate",
+      "size_bytes": 80000000,
+      "created_at": "2026-06-01T09:50:00Z",
+      "group": "run_1_step2",
+      "checksum": null,
+      "retention": null,
+      "properties": {}
+    },
+    {
+      "key": "run1_step3_tsne",
+      "href": "/data/storage/projects/a3f2c1d4-.../run_1/step3_output/tsne_k6.png",
+      "title": "t-SNE cluster plot (k=6)",
+      "media_type": "image/png",
+      "roles": ["visualization"],
+      "data_class": "visualization",
+      "size_bytes": 2000000,
+      "created_at": "2026-06-01T10:30:00Z",
+      "group": "run_1_step3",
+      "checksum": null,
+      "retention": null,
+      "properties": { "chosen_k": 6 }
+    },
+    {
+      "key": "run1_step3_cluster_samples",
+      "href": "/data/storage/projects/a3f2c1d4-.../run_1/step3_output/cluster_samples/",
+      "title": "Cluster sample crops",
+      "media_type": "image/png",
+      "roles": ["visualization"],
+      "data_class": "visualization",
+      "size_bytes": 398000000,
+      "created_at": "2026-06-01T10:30:00Z",
+      "group": "run_1_step3",
+      "checksum": null,
+      "retention": null,
+      "properties": {}
+    },
+    {
+      "key": "run1_step4_kmz",
+      "href": "/data/storage/projects/a3f2c1d4-.../run_1/step4_output/species_map.kmz",
+      "title": "Species map (KMZ)",
+      "media_type": "application/vnd.google-earth.kmz",
+      "roles": ["product", "shareable"],
+      "data_class": "product",
+      "size_bytes": 40000000,
+      "created_at": "2026-06-01T10:45:00Z",
+      "group": "run_1_step4",
+      "checksum": null,
+      "retention": { "action": "keep", "reason": "primary deliverable" },
+      "properties": {
+        "species_distribution": { "oak": 1820, "pine": 1543, "birch": 901, "unknown": 557 }
+      }
+    },
+    {
+      "key": "run1_step4_csv",
+      "href": "/data/storage/projects/a3f2c1d4-.../run_1/step4_output/species_map.csv",
+      "title": "Species map (CSV)",
+      "media_type": "text/csv",
+      "roles": ["product", "shareable"],
+      "data_class": "product",
+      "size_bytes": 7483648,
+      "created_at": "2026-06-01T10:45:00Z",
+      "group": "run_1_step4",
+      "checksum": null,
+      "retention": { "action": "keep", "reason": "primary deliverable" },
+      "properties": {}
+    }
+  ],
+
+  "_access_doc": "Controls external catalog visibility and records share links.",
+  "access": {
+    "visibility": "private",
+    "consent_to_publish": false,
+    "shares": [
+      {
+        "provider": "filebrowser",
+        "hash": "fNqIKDS3",
+        "url": "http://localhost:8097/share/fNqIKDS3",
+        "public": true,
+        "created_at": "2026-06-01T08:01:00Z"
+      }
+    ]
+  },
+
+  "_retention_doc": "Declarative rules matched against each asset's data_class. First match wins. Per-asset retention field overrides these.",
+  "retention": {
+    "clock": "updated_at",
+    "rules": [
+      { "match": { "data_class": "raw-input" },     "action": "delete", "after": "30d" },
+      { "match": { "data_class": "intermediate" },  "action": "delete", "after": "7d" },
+      { "match": { "data_class": "visualization" }, "action": "delete", "after": "30d" },
+      { "match": { "data_class": "product" },       "action": "keep" }
+    ],
+    "holds": []
+  }
+}
