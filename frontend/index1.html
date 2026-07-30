@@ -142,8 +142,6 @@
     #auth-gate button.primary-sso:disabled{opacity:.5;cursor:default}
     #auth-gate button.primary-sso .g-icon{width:20px;height:20px;background:#fff;border-radius:2px;display:grid;place-items:center;flex:none}
     #auth-gate button.primary-sso .g-icon svg{width:12px;height:12px}
-    #auth-gate button.guest-btn{font:inherit;font-weight:600;border:1px solid #c7c1b0;border-radius:4px;padding:12px 20px;cursor:pointer;background:transparent;color:var(--green-d);transition:background .15s}
-    #auth-gate button.guest-btn:hover{background:#f0ede3}
     #auth-gate .gate-note{font-size:12px;color:var(--muted);max-width:240px;line-height:1.4}
     #auth-gate .gate-note b{color:var(--green-d)}
     #auth-gate .gerr{color:var(--err);font-size:12px;display:block;margin-top:4px;min-height:1em}
@@ -173,7 +171,7 @@
 </head>
 <body>
   <!-- Google sign-in gate (landing_I_grid). Covers the app until sign-in
-       succeeds (or a guest continues). Auto-hidden when auth is not configured (dev). -->
+       succeeds. Auto-hidden when auth is not configured (dev). -->
   <div id="auth-gate">
     <div class="wrap">
       <header class="top fade-slide del-1">
@@ -218,12 +216,9 @@
               </span>
               <span id="ssoLabel">Loading Google sign-in…</span>
             </button>
-            <button id="guestBtn" class="guest-btn" onclick="guestLogin()">
-              Continue as guest
-            </button>
             <div class="gate-note">
-              Institutional access via <b>Google SSO</b>, or continue as a
-              <b>guest</b> for a quick, unauthenticated session.
+              Institutional access via <b>Google SSO</b>. Every run is attributed
+              to your account.
               <span id="gateErr" class="gerr"></span>
             </div>
           </div>
@@ -327,30 +322,32 @@
         </h2>
         <p class="lead">Pick the models and tune the run, then start detection + clustering.</p>
         <div id="runinfo" class="muted" style="margin-bottom:10px"></div>
-        <label>Run name <span class="muted">(for your own reference)</span></label>
-        <input id="runname" placeholder="run label" />
-
-        <!-- Only shown when the uploaded GeoTIFF carried no CRS, so auto-detect
-             produced nothing. Without an answer here the pipeline would silently
-             assume EPSG:32643 and misplace every exported polygon. -->
-        <div id="epsgFallback" class="note" style="display:none">
-          <span class="warn">No CRS found in the GeoTIFF.</span>
-          Enter the EPSG code of the survey's coordinate system — exports will be
-          georeferenced incorrectly without it.
-          <input id="p_epsg" type="number" placeholder="e.g. 32643" />
+        <div class="grid">
+          <div>
+            <label>Run name <span class="muted">(for your own reference)</span></label>
+            <input id="runname" placeholder="run label" />
+          </div>
+          <div>
+            <label>Source EPSG <span class="muted">(blank = auto-detect)</span></label>
+            <input id="epsg" placeholder="e.g. 32643" />
+          </div>
+          <div>
+            <label>Detector model</label>
+            <span class="hint">Detectree2 weights used to find crowns. Pick one trained on similar imagery.</span>
+            <select id="modelKey"><option>loading…</option></select>
+          </div>
+          <div>
+            <label>Feature extractor (DINOv2)</label>
+            <span class="hint">Vision model that turns each crown into features for clustering.</span>
+            <select id="backbone"><option>loading…</option></select>
+          </div>
         </div>
 
-        <p class="muted" style="margin:14px 0 2px;font-size:12px">
-          Defaults work well for most surveys — only change these if you know the
-          effect. Each field explains what it does below.</p>
-
         <details open>
-          <summary>Detection — Detectree2 <span class="muted" style="font-weight:400">· finds individual crowns</span></summary>
-          <div class="grid" style="margin-top:8px">
-            <div><label>Detector model</label>
-              <span class="hint">Detectree2 weights used to find crowns. Pick one trained on similar imagery.</span>
-              <select id="modelKey"><option>loading…</option></select></div>
-          </div>
+          <summary>Parameters</summary>
+          <p class="muted" style="margin:6px 0 2px;font-size:12px">
+            Defaults work well for most surveys — only change these if you know the
+            effect. Each field explains what it does below.</p>
           <div class="grid3" style="margin-top:8px">
             <div><label>tile_size</label>
               <span class="hint">Detection tile edge (m). Smaller = finer &amp; more tiles, but slower.</span>
@@ -358,31 +355,22 @@
             <div><label>buffer</label>
               <span class="hint">Tile overlap (m) so crowns on tile edges aren't cut in half.</span>
               <input id="p_buf" type="number" value="10" /></div>
+            <div><label>img_size</label>
+              <span class="hint">Crop is resized to this many px before DINOv2 (224 is standard).</span>
+              <input id="p_img" type="number" value="224" /></div>
             <div><label>iou_threshold</label>
               <span class="hint">Merge overlapping crown boxes above this (0–1). Higher = fewer merges.</span>
               <input id="p_iou" type="number" step="0.01" value="0.9" /></div>
             <div><label>conf_threshold</label>
               <span class="hint">Keep detections above this confidence (0–1). Higher = fewer, surer crowns.</span>
               <input id="p_conf" type="number" step="0.01" value="0.85" /></div>
-          </div>
-        </details>
-
-        <details open>
-          <summary>Crown embedding — DINOv2 <span class="muted" style="font-weight:400">· turns each crown into a feature vector</span></summary>
-          <div class="grid" style="margin-top:8px">
-            <div><label>Feature extractor</label>
-              <span class="hint">Vision model that turns each crown into features for clustering. Also fixes the crop size each crown is resized to.</span>
-              <select id="backbone"><option>loading…</option></select></div>
-          </div>
-        </details>
-
-        <details open>
-          <summary>Clustering — PCA + KMeans <span class="muted" style="font-weight:400">· groups similar crowns</span></summary>
-          <div class="grid" style="margin-top:8px">
             <div><label>pca_components</label>
               <span class="hint">Feature dimensions kept before clustering. Lower = faster, coarser.</span>
               <input id="p_pca" type="number" value="50" /></div>
-            <div><label>k_list <span class="muted">(comma-separated)</span></label>
+            <div><label>batch_size</label>
+              <span class="hint">Crops processed per batch. Lower it if you hit out-of-memory errors.</span>
+              <input id="p_batch" type="number" value="16" /></div>
+            <div style="grid-column:span 2"><label>k_list <span class="muted">(comma-separated)</span></label>
               <span class="hint">Candidate cluster counts to try. The app recommends one of these to label.</span>
               <input id="klist" value="2,4,6,8,10" /></div>
           </div>
@@ -484,7 +472,7 @@
           <div class="faq-body">
             <ul>
               <li>A drone survey exported as a <strong>GeoTIFF (.tif)</strong> — RGB or multispectral</li>
-              <li>A signed-in account (Google sign-in on the landing page), or continue as a guest</li>
+              <li>A signed-in account (Google sign-in on the landing page)</li>
               <li>Rough knowledge of the tree species present in your area</li>
             </ul>
             No programming skills required.
@@ -534,24 +522,19 @@
         <details class="faq-item">
           <summary>What do the analysis parameters mean?</summary>
           <div class="faq-body">
-            Defaults suit most surveys. Step 3 groups them by the stage they
-            affect:
+            Defaults suit most surveys. If you open <strong>Parameters</strong> in
+            Step 3:
             <ul>
-              <li><b>Detection — Detectree2</b>
-                <span class="tag">tile_size</span> detection tile edge (m); smaller = finer but slower ·
-                <span class="tag">buffer</span> tile overlap (m) so edge crowns aren't cut ·
-                <span class="tag">iou_threshold</span> merge overlapping boxes above this (0–1) ·
-                <span class="tag">conf_threshold</span> keep detections above this confidence (0–1)</li>
-              <li><b>Crown embedding — DINOv2</b>
-                the feature extractor turns each crown into a vector. It also fixes
-                the crop size, so there is nothing else to set here.</li>
-              <li><b>Clustering — PCA + KMeans</b>
-                <span class="tag">pca_components</span> feature dims before clustering; lower = faster ·
-                <span class="tag">k_list</span> candidate cluster counts tried; one is recommended</li>
+              <li><span class="tag">tile_size</span> — detection tile edge (m); smaller = finer but slower</li>
+              <li><span class="tag">buffer</span> — tile overlap (m) so edge crowns aren't cut</li>
+              <li><span class="tag">img_size</span> — px each crop is resized to (224 standard)</li>
+              <li><span class="tag">iou_threshold</span> — merge overlapping boxes above this (0–1)</li>
+              <li><span class="tag">conf_threshold</span> — keep detections above this confidence (0–1)</li>
+              <li><span class="tag">pca_components</span> — feature dims before clustering; lower = faster</li>
+              <li><span class="tag">batch_size</span> — crops per batch; lower on out-of-memory</li>
+              <li><span class="tag">k_list</span> — candidate cluster counts tried; one is recommended</li>
             </ul>
-            Each field also shows this hint inline in Step 3. The coordinate system
-            is read from the GeoTIFF, and batch size is fixed by the server's GPU
-            memory — neither is yours to set.
+            Each field also shows this hint inline in Step 3.
           </div>
         </details>
 
@@ -671,21 +654,6 @@ function requestLogin(){
   AUTH.client.requestAccessToken();   // shows the consent popup
 }
 
-// Guest bypass: skips Google OAuth entirely and assigns a per-session
-// placeholder identity so the app still has something to send as
-// X-User-Email / X-User-Id for audit + ownership headers.
-function guestLogin(){
-//   gateError("");
-//   const rand = Math.random().toString(36).slice(2, 10);
-//   AUTH.email = "guest-" + rand + "@guest.local";
-//   AUTH.userId = "guest-" + rand;
-//   onSignedIn();
-    gateError("");
-    AUTH.email = "guest@guest.local";
-    AUTH.userId = "guest";
-    onSignedIn();
-}
-
 async function fetchUserInfo(){
   if(!AUTH.token) return;
   try{
@@ -754,12 +722,6 @@ async function refreshProject(){
   const ln=$("lockNote");
   if(frozen){ ln.style.display="block"; ln.innerHTML='<span class="warn">Dataset locked.</span> The orthomosaic &amp; ground truth can\'t change after the first analysis &mdash; re-runs change parameters &amp; labels only. Start a new project for a different dataset.'; }
   else { ln.style.display="none"; }
-  // An ortho exists but the server detected no CRS -> the user must supply the
-  // EPSG, otherwise build_config falls back to a hardcoded 32643 and the export
-  // is silently georeferenced wrong.
-  const needsEpsg = (p.orthos||[]).length > 0 && !p.source_epsg;
-  $("epsgFallback").style.display = needsEpsg ? "block" : "none";
-  if(!needsEpsg) $("p_epsg").value = "";
   const run=p.current_run||1;
   CURRENT_RUN=run;
   $("runinfo").innerHTML = run>1
@@ -784,9 +746,10 @@ async function populateModels(){
       const o=document.createElement("option");
       o.value=b.name; o.textContent=(b.description||b.name)+(b.default?" (default)":"");
       o.dataset.img=b.img_size||224;
-      if(b.default) o.selected=true;
+      if(b.default){ o.selected=true; if(b.img_size) $("p_img").value=b.img_size; }
       bsel.appendChild(o);
     });
+    bsel.onchange=()=>{ const img=bsel.selectedOptions[0]?.dataset.img; if(img) $("p_img").value=img; };
     log("loaded "+dets.length+" detectors, "+bbs.length+" feature extractors");
   }catch(e){
     $("modelKey").innerHTML='<option value="">(could not load)</option>';
@@ -842,19 +805,8 @@ async function pollState(done,fail,stageEl){
 
 function numOrNull(id){ const v=$(id).value.trim(); return v===""?null:Number(v); }
 
-// img_size is a property of the chosen DINOv2 backbone (models.yaml), not a free
-// knob — read it off the selected option instead of asking the user.
-function backboneImgSize(){
-  const o=$("backbone").selectedOptions[0];
-  return (o && +o.dataset.img) || 224;
-}
-
 async function analyze(){
   if(!PID) return alert("Create a project first");
-  if($("epsgFallback").style.display!=="none" && $("p_epsg").value.trim()===""){
-    $("ainfo").innerHTML='<span class="err">Enter the source EPSG — it could not be detected from the GeoTIFF.</span>';
-    return;
-  }
   $("btnAnalyze").disabled=true; $("aprog").style.display="block"; $("ainfo").textContent="";
   $("clusterRows").innerHTML=""; $("linfo").textContent=""; $("results").textContent="";
   try{
@@ -864,12 +816,12 @@ async function analyze(){
       action: "analyze",
       run_name: $("runname").value.trim()||null,
       model_key: $("modelKey").value||null,
-      source_epsg: numOrNull("p_epsg"),
+      source_epsg: numOrNull("epsg"),
       params:{
         tile_size:+$("p_tile").value, buffer:+$("p_buf").value,
         iou_threshold:+$("p_iou").value, conf_threshold:+$("p_conf").value,
-        pca_components:+$("p_pca").value,
-        img_size: backboneImgSize(), k_list:klist,
+        pca_components:+$("p_pca").value, batch_size:+$("p_batch").value,
+        img_size:+$("p_img").value, k_list:klist,
         model_name:$("backbone").value||undefined
       }
     };
@@ -1231,13 +1183,12 @@ function initGateCanvas(){
 
 // ── Boot ────────────────────────────────────────────────────────────────
 // If a real Google client id is configured, keep the sign-in gate up and wait
-// for the user to authenticate (onSignedIn boots the app) — or let them
-// bypass it via guestLogin(). If auth is not configured (local dev /
-// unconfigured deploy), bypass the gate so the pipeline stays usable,
-// matching backend auth_enabled=False.
+// for the user to authenticate (onSignedIn boots the app). If auth is not
+// configured (local dev / unconfigured deploy), bypass the gate so the pipeline
+// stays usable, matching backend auth_enabled=False.
 window.addEventListener("load", ()=>{
   if(AUTH_CONFIGURED){
-    initGis();                         // gate stays visible until sign-in / guest
+    initGis();                         // gate stays visible until sign-in
     initGateCanvas();                  // animate the landing plate
   } else {
     const gate = $("auth-gate"); if(gate) gate.classList.add("hidden");

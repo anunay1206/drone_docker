@@ -15,3 +15,20 @@ code/predictions/
 node_modules/
 .codebase_map_state.json
 frontend/config.js
+/docs/progress_reports
+*.tif
+/scripts
+*.png
+*.pgw
+bbmp_tree_census_july_2026.geojson
+_tile_cache*/
+run_2/
+gt_out/
+gt_compare*/
+gt_sens_*/
+# Generated GT-comparison artifacts (code/scripts/compare_gt.py + make_gt_report.py).
+# The tile PNGs alone run to ~140 MB per run; the report/deck stay tracked.
+gt_compare*/
+docs/progress_reports/*/tiles/
+# Spatial index derived from the raw census geojson by code/scripts/index_census.py
+bbmp_tree_census.gpkg

@@ -16,7 +16,12 @@ class PipelineParams(BaseModel):
     # features + clustering (Step 1)
     k_list: list[int] = Field(default_factory=lambda: [2, 4, 6, 8, 10])
     pca_components: int | None = 50
-    batch_size: int = 16
+    # Bounded by the deployment's GPU VRAM, so deliberately NOT exposed in the UI
+    # — raising it OOMs the run. Still accepted here so stored project params stay
+    # valid and an operator can override it via the API.
+    batch_size: int = 64
+    # Fixed by the chosen DINOv2 backbone (models.yaml img_size); the frontend
+    # sends the selected backbone's value rather than asking the user.
     img_size: int = 224
     model_name: str = Field(default_factory=default_backbone)
 

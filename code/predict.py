@@ -19,7 +19,7 @@ import torch
 
 #  DOWNSAMPLE Image
 
-def downsample_image(input_path, output_path, scale=0.3):
+def downsample_image(input_path, output_path, scale=1):
     with rasterio.open(input_path) as src:
         new_width = int(src.width * scale)
         new_height = int(src.height * scale)
@@ -45,6 +45,36 @@ def downsample_image(input_path, output_path, scale=0.3):
             dst.write(data)
 
     return output_path
+
+
+def get_ortho_gsd(ortho_path):
+    """Read the native ground sample distance (metres/pixel) directly from the
+    raster's own geotransform — no assumptions, no measuring, just what the
+    file already stores."""
+    with rasterio.open(ortho_path) as src:
+        return abs(src.transform.a)
+
+
+# Effective resolution (post-downsample) that detection is currently tuned for,
+# calibrated off the Sanjay Van ortho (2.5 cm native / 0.3 downsample = 8.33 cm
+# effective). Every other ortho's downsample scale is derived from this target
+# instead of reusing a flat 0.3 regardless of native resolution.
+TARGET_EFFECTIVE_GSD_M = 0.025 / 0.3
+
+
+def compute_downsample_scale(ortho_path, target_gsd_m=TARGET_EFFECTIVE_GSD_M):
+    """Pick a downsample scale so this ortho's *effective* resolution after
+    downsampling matches target_gsd_m, regardless of its native GSD. Clamped
+    to 1.0 so we never upsample past the real data."""
+    native_gsd = get_ortho_gsd(ortho_path)
+    scale = min(1.0, native_gsd / target_gsd_m)
+    effective_gsd = native_gsd / scale
+    print(
+        f"  Native GSD: {native_gsd * 100:.2f} cm/px -> downsample scale: {scale:.3f} "
+        f"-> effective GSD: {effective_gsd * 100:.2f} cm/px "
+        f"(target: {target_gsd_m * 100:.2f} cm/px)"
+    )
+    return scale
 
 
 def resolve_ortho_path(ortho_path):
@@ -103,6 +133,7 @@ def run_detectree2_pipeline(
     iou_threshold=0.9,
     conf_threshold=0.85,
     model_path=None,
+    target_gsd_m=TARGET_EFFECTIVE_GSD_M,
 ):
 
     os.makedirs(output_dir, exist_ok=True)
@@ -124,7 +155,8 @@ def run_detectree2_pipeline(
     ortho_path = resolve_ortho_path(ortho_path)
 
     print("Step 0: Downsampling image...")
-    ortho_path = downsample_image(ortho_path, os.path.join(output_dir, "downsampled.tif"), scale=0.3)
+    scale = compute_downsample_scale(ortho_path, target_gsd_m=target_gsd_m)
+    ortho_path = downsample_image(ortho_path, os.path.join(output_dir, "downsampled.tif"), scale=scale)
 
   
     # STEP 1: TILING
@@ -226,7 +258,7 @@ def run_detectree2_pipeline(
 
     #  AREA FILTER 
     crowns["area"] = crowns.geometry.area
-    crowns = crowns[(crowns["area"] > 4) & (crowns["area"] < 200)].copy()
+    crowns = crowns[(crowns["area"] > 4) & (crowns["area"] < 2000)].copy()
 
     crowns = gpd.GeoDataFrame(crowns, geometry="geometry", crs=crs)
 

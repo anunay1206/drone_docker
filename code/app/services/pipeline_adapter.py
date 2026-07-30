@@ -54,7 +54,7 @@ def build_config(project) -> types.SimpleNamespace:
     # features + clustering (Step 1)
     cfg.MODEL_NAME = params.get("model_name") or default_backbone()
     cfg.IMG_SIZE = params.get("img_size", 224)
-    cfg.BATCH_SIZE = params.get("batch_size", 16)
+    cfg.BATCH_SIZE = params.get("batch_size", 64)  # keep in sync with PipelineParams
     cfg.PCA_COMPONENTS = params.get("pca_components", 50)
     cfg.K_LIST = params.get("k_list", [2, 4, 6, 8, 10])
     cfg.COPY_TO_CLUSTER_FOLDERS = True
