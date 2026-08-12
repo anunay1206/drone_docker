@@ -125,8 +125,12 @@ def _validate_trigger_body(project, body) -> None:
         raise HTTPException(400, {"code": "BAD_REQUEST", "message": str(e),
                                   "project_id": project.id})
     if body.params:
-        from app.api.v1.projects import _validate_param_overrides
+        from app.api.v1.projects import (
+            _validate_merged_params,
+            _validate_param_overrides,
+        )
         _validate_param_overrides(body.params)
+        _validate_merged_params(project, body.params)
 
 
 def _apply_run_config(db: Session, project, body, pre_state: str) -> None:

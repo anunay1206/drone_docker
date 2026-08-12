@@ -98,11 +98,37 @@ def resolve_ortho_path(ortho_path):
 
 # MODEL BUILDER (warm cache: build once, reuse across orthos)
 
-def build_predictor(model_path, conf_threshold=0.85):
+# Defaults for the values that used to be hardcoded in build_predictor /
+# run_detectree2_pipeline. Kept at their original values so lifting them into
+# parameters changes no existing behaviour. See docs/lowres_run_params.md for
+# what to raise them to on new imagery.
+DEFAULT_DETECTIONS_PER_IMAGE = 6      # detectron2's own default is 100
+DEFAULT_MIN_SIZE_TEST = 512           # detectree2 predicts at ~1000
+DEFAULT_AREA_MIN = 4                  # m2, in the ortho's CRS units
+DEFAULT_AREA_MAX = 2000               # m2
+DEFAULT_FULL_COVERAGE = False         # True also tiles the right/bottom remainder
+
+
+def build_predictor(
+    model_path,
+    conf_threshold=0.85,
+    detections_per_image=DEFAULT_DETECTIONS_PER_IMAGE,
+    min_size_test=DEFAULT_MIN_SIZE_TEST,
+):
     """Build a detectron2 ``DefaultPredictor`` from detectree2 weights.
 
     Separated from the pipeline so the worker can construct it once per
     process and reuse it across every ortho (see app/workers/tasks.py).
+
+    ``detections_per_image`` caps how many crowns may be returned per tile;
+    anything beyond it is discarded silently, so it must exceed the densest
+    tile you expect. ``min_size_test`` is the size every tile is resized to
+    before inference, and therefore sets the apparent size of a crown at the
+    network: ``pixels_per_metre = min_size_test / (tile_size + 2 * buffer)``.
+
+    NOTE for callers that cache predictors: both arguments are baked into the
+    returned object, so they belong in any cache key alongside model_path and
+    conf_threshold.
     """
     cfg = setup_cfg(update_model=model_path)
 
@@ -114,10 +140,12 @@ def build_predictor(model_path, conf_threshold=0.85):
         cfg.MODEL.DEVICE = "cpu"
 
     cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = conf_threshold
-    cfg.MODEL.ROI_HEADS.DETECTIONS_PER_IMAGE = 6
+    cfg.MODEL.ROI_HEADS.DETECTIONS_PER_IMAGE = int(detections_per_image)
 
-    cfg.INPUT.MIN_SIZE_TEST = 512
-    cfg.INPUT.MAX_SIZE_TEST = 512
+    # Tiles are square, so MIN and MAX coincide and no aspect-ratio clamping
+    # occurs. Keeping them equal preserves the original behaviour exactly.
+    cfg.INPUT.MIN_SIZE_TEST = int(min_size_test)
+    cfg.INPUT.MAX_SIZE_TEST = int(min_size_test)
 
     return DefaultPredictor(cfg)
 
@@ -134,7 +162,16 @@ def run_detectree2_pipeline(
     conf_threshold=0.85,
     model_path=None,
     target_gsd_m=TARGET_EFFECTIVE_GSD_M,
+    area_min=DEFAULT_AREA_MIN,
+    area_max=DEFAULT_AREA_MAX,
+    full_coverage=DEFAULT_FULL_COVERAGE,
+    detections_per_image=DEFAULT_DETECTIONS_PER_IMAGE,
+    min_size_test=DEFAULT_MIN_SIZE_TEST,
 ):
+    """``detections_per_image`` and ``min_size_test`` are only used when this
+    function has to build its own predictor (``predictor=None``). When a
+    predictor is passed in, those two values are already baked into it and the
+    arguments here are ignored — the caller owns them."""
 
     os.makedirs(output_dir, exist_ok=True)
 
@@ -171,7 +208,7 @@ def run_detectree2_pipeline(
         tile_height=tile_size,
         threshold=0.05,
         nan_threshold=0.3,
-        full_coverage=False
+        full_coverage=bool(full_coverage),
     )
 
     tiles = [f for f in os.listdir(tiles_dir) if f.endswith(".png") or f.endswith(".tif")]
@@ -191,7 +228,12 @@ def run_detectree2_pipeline(
                 "run_detectree2_pipeline needs either a prebuilt `predictor` "
                 "or a `model_path` to build one."
             )
-        predictor = build_predictor(model_path, conf_threshold=conf_threshold)
+        predictor = build_predictor(
+            model_path,
+            conf_threshold=conf_threshold,
+            detections_per_image=detections_per_image,
+            min_size_test=min_size_test,
+        )
 
   
     # STEP 3: PREDICTION
@@ -256,9 +298,12 @@ def run_detectree2_pipeline(
     if conf_col:
         crowns = crowns[crowns[conf_col] > conf_threshold]
 
-    #  AREA FILTER 
+    #  AREA FILTER
+    # Units follow the ortho's CRS. Both bounds are exclusive, as before.
     crowns["area"] = crowns.geometry.area
-    crowns = crowns[(crowns["area"] > 4) & (crowns["area"] < 2000)].copy()
+    crowns = crowns[
+        (crowns["area"] > float(area_min)) & (crowns["area"] < float(area_max))
+    ].copy()
 
     crowns = gpd.GeoDataFrame(crowns, geometry="geometry", crs=crs)
 

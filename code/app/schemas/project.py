@@ -1,21 +1,44 @@
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.core.models_registry import default_backbone
 
 
 class PipelineParams(BaseModel):
-    """User-tunable knobs; mirror the pipeline's Config fields."""
+    """User-tunable knobs; mirror the pipeline's Config fields.
+
+    Bounds exist so a bad value fails at trigger time with a readable 400
+    rather than deep inside detectron2 after tiling has already run. They are
+    enforced by ``_validate_param_overrides`` (projects.py), which rebuilds
+    each field's annotation together with its FieldInfo — the constraints are
+    NOT carried by the bare annotation.
+
+    Defaults match what these values were hardcoded to before they were lifted
+    into parameters, so exposing them changed no existing behaviour.
+    """
 
     # detection (Step 0)
-    tile_size: int = 10
-    buffer: int = 10
-    iou_threshold: float = 0.9
-    conf_threshold: float = 0.85
+    tile_size: int = Field(default=10, ge=1, le=1000)
+    buffer: int = Field(default=10, ge=0, le=500)
+    iou_threshold: float = Field(default=0.9, ge=0.0, le=1.0)
+    conf_threshold: float = Field(default=0.85, ge=0.0, le=1.0)
+    # Cap on crowns returned per tile. Anything beyond it is discarded with no
+    # warning, so it must exceed the densest tile expected. detectron2's own
+    # default is 100; this pipeline shipped with 6.
+    detections_per_image: int = Field(default=6, ge=1, le=500)
+    # Size every tile is resized to before inference. Together with the tile
+    # footprint it sets crown size at the network:
+    #   pixels_per_metre = min_size_test / (tile_size + 2 * buffer)
+    min_size_test: int = Field(default=512, ge=256, le=2048)
+    # Crown area filter, in the ortho CRS's units (m2 for UTM). Exclusive.
+    area_min: float = Field(default=4.0, ge=0.0, le=100000.0)
+    area_max: float = Field(default=2000.0, ge=1.0, le=100000.0)
+    # False skips the right/bottom remainder strip of the ortho.
+    full_coverage: bool = False
     # features + clustering (Step 1)
     k_list: list[int] = Field(default_factory=lambda: [2, 4, 6, 8, 10])
-    pca_components: int | None = 50
+    pca_components: int | None = Field(default=50, ge=2, le=768)
     # Bounded by the deployment's GPU VRAM, so deliberately NOT exposed in the UI
     # — raising it OOMs the run. Still accepted here so stored project params stay
     # valid and an operator can override it via the API.
@@ -24,6 +47,21 @@ class PipelineParams(BaseModel):
     # sends the selected backbone's value rather than asking the user.
     img_size: int = 224
     model_name: str = Field(default_factory=default_backbone)
+
+    @model_validator(mode="after")
+    def _check_cross_field(self):
+        """Relationships the per-field bounds cannot see.
+
+        Must be run against the MERGED params, not just the overrides: sending
+        area_min alone still has to be checked against the stored area_max.
+        See ``_validate_trigger_body`` in runs.py.
+        """
+        if self.area_min >= self.area_max:
+            raise ValueError(
+                f"area_min ({self.area_min}) must be smaller than "
+                f"area_max ({self.area_max})"
+            )
+        return self
 
 
 class ProjectCreate(BaseModel):

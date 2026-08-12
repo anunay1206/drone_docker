@@ -17,8 +17,19 @@
     a{color:var(--green-d)}
     header.top{border-bottom:1px solid var(--line);background:linear-gradient(#fbfaf4,#f4f1e8)}
     .wrap{max-width:780px;margin:0 auto;padding:0 20px}
-    header.top .wrap{padding-top:18px;padding-bottom:16px}
-    header.top h1{margin:0;font-size:23px}
+    /* Match .page-layout's 1180px, not .wrap's default 780px — otherwise the
+       title sits in a narrower column than the content beneath it and the
+       right-hand controls squeeze it into wrapping. */
+    header.top .wrap{max-width:1180px;padding-top:16px;padding-bottom:14px}
+    header.top h1{margin:0;font-size:22px;white-space:nowrap;line-height:1.25}
+    header.top .brand{display:flex;align-items:baseline;gap:10px;min-width:0}
+    header.top .brand .tag{font-size:11.5px;color:var(--muted);font-style:italic;
+      white-space:nowrap}
+    @media(max-width:900px){
+      header.top h1{font-size:19px}
+      header.top .brand .tag{display:none}
+    }
+    @media(max-width:620px){header.top h1{white-space:normal}}
     header.top p{margin:4px 0 0;color:var(--muted);font-style:italic;font-size:14px}
 
     /* ── two-column page layout ── */
@@ -169,6 +180,144 @@
     /* one-line "what this does" hint under advanced parameter labels */
     .hint{display:block;font-size:11px;line-height:1.35;color:var(--muted);
       margin:2px 0 2px;font-weight:400}
+
+    /* ── Parameter Guide page (hash route #/guide) ──────────────────────── */
+    /* Third top-level view, alongside #auth-gate and the app. Shown by
+       toggling .show-guide on <body>; the app is hidden, not destroyed, so
+       any half-filled form in Step 3 survives a trip to the guide. */
+    a.nav-link{color:var(--green-d);font-size:13px;font-weight:600;
+      text-decoration:none;border-bottom:1px solid transparent;cursor:pointer}
+    a.nav-link:hover{border-bottom-color:var(--green-d)}
+    /* Prominent, always-visible route into the guide. The old text link sat
+       next to the sign-in chip and nobody found it. */
+    a.guide-cta{display:inline-flex;align-items:center;gap:7px;
+      background:var(--green);color:#fff;font-size:13px;font-weight:600;
+      border-radius:4px;padding:7px 14px;text-decoration:none;white-space:nowrap;
+      box-shadow:0 1px 3px rgba(0,0,0,.08);transition:background .15s}
+    a.guide-cta:hover{background:var(--green-d)}
+    a.guide-cta svg{width:14px;height:14px;flex:none}
+    /* Same thing, sitting inside Step 3 where the confusion actually happens. */
+    .guide-banner{display:flex;align-items:center;justify-content:space-between;
+      gap:14px;flex-wrap:wrap;background:var(--green-l);
+      border:1px solid #cfe0ca;border-radius:5px;padding:11px 14px;margin:14px 0 4px}
+    .guide-banner p{margin:0;font-size:13px;color:var(--green-d);max-width:60ch}
+    .guide-banner b{color:var(--ink)}
+    /* the small "?" beside each parameter label */
+    a.phelp{display:inline-grid;place-items:center;width:14px;height:14px;
+      border:1px solid var(--line);border-radius:50%;background:var(--green-l);
+      color:var(--green-d);font-size:9.5px;font-weight:700;line-height:1;
+      text-decoration:none;vertical-align:1px;margin-left:3px}
+    a.phelp:hover{background:var(--green);color:#fff;border-color:var(--green)}
+
+    #guide-page{display:none}
+    body.show-guide #guide-page{display:block}
+    body.show-guide > header.top,
+    body.show-guide > .page-layout{display:none}
+
+    /* 820px, not the app's 1180 — that is far too wide for reading prose */
+    .guide-wrap{max-width:820px;margin:0 auto;padding:22px 20px 64px}
+    .guide-wrap h2{font-size:20px;margin:34px 0 10px;padding-top:8px;
+      border-top:1px solid var(--line)}
+    .guide-wrap h2:first-of-type{border-top:0;margin-top:12px}
+    .guide-wrap p{margin:0 0 12px}
+    .guide-lede{color:var(--muted);font-size:13.5px;font-style:italic}
+
+    .param-card{background:var(--card);border:1px solid var(--line);
+      border-left:3px solid var(--green);border-radius:5px;
+      padding:14px 16px;margin:0 0 14px;scroll-margin-top:70px}
+    .param-card h3{margin:0 0 2px;font-size:15.5px;color:var(--green-d)}
+    .param-card .pc-code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+      font-size:12.5px;color:var(--muted)}
+    .param-card .pc-plain{margin:8px 0 0;font-size:14px}
+    .param-card .pc-analogy{margin:6px 0 0;font-size:13px;color:var(--muted);
+      font-style:italic}
+    .pc-effects{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+    @media(max-width:560px){.pc-effects{grid-template-columns:1fr}}
+    .pc-eff{border-radius:4px;padding:8px 10px;font-size:12.5px;line-height:1.4}
+    .pc-eff b{display:block;font-size:11px;text-transform:uppercase;
+      letter-spacing:.04em;margin-bottom:3px}
+    .eff-down{background:#fdf6e8;border:1px solid #ecdcbb;color:#6a5220}
+    .eff-down b{color:var(--warn)}
+    .eff-up{background:#fbeeec;border:1px solid #eed4cf;color:#6d3b33}
+    .eff-up b{color:var(--err)}
+    .pc-meta{margin-top:10px;padding-top:9px;border-top:1px solid var(--line);
+      font-size:12.5px;color:var(--muted)}
+    .pc-meta b{color:var(--ink)}
+
+    /* ── past runs: collapsed, dated, scroll-capped ── */
+    details.runs{background:var(--card);border:1px solid var(--line);
+      border-radius:5px;padding:10px 14px}
+    details.runs summary{cursor:pointer;font-size:14px;list-style:none}
+    details.runs summary::-webkit-details-marker{display:none}
+    details.runs summary::before{content:"\25B8";display:inline-block;
+      margin-right:8px;color:var(--muted);transition:transform .15s}
+    details.runs[open] summary::before{transform:rotate(90deg)}
+    ul.run-list{list-style:none;margin:10px 0 2px;padding:0;
+      max-height:280px;overflow-y:auto}
+    li.run-row{display:grid;grid-template-columns:1fr auto 92px 66px;
+      align-items:center;gap:10px;padding:6px 2px;font-size:13px;
+      border-top:1px solid var(--line)}
+    li.run-row:first-child{border-top:0}
+    .run-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .run-sub{color:var(--muted)}
+    .run-sub::before{content:" \00b7 "}
+    .run-when{color:var(--muted);font-size:11.5px;text-align:right;white-space:nowrap}
+    li.run-row a{font-size:12px;text-align:right;white-space:nowrap}
+    @media(max-width:620px){
+      li.run-row{grid-template-columns:1fr auto;row-gap:2px}
+      .run-when{text-align:left}
+    }
+
+    /* ── guide: how-to-run steps ── */
+    .howto{display:grid;gap:9px;margin:0 0 10px}
+    .ht{display:flex;gap:12px;align-items:flex-start;background:var(--card);
+      border:1px solid var(--line);border-radius:5px;padding:11px 14px}
+    .ht-n{flex:none;width:25px;height:25px;border-radius:50%;background:var(--green);
+      color:#fff;font-size:13px;font-weight:700;display:grid;place-items:center;
+      font-family:Calibri,Arial,sans-serif}
+    .ht b{font-size:14.5px}
+    .ht p{margin:3px 0 0;font-size:13px;color:var(--muted);line-height:1.5}
+
+    .guide-toc{background:var(--card);border:1px solid var(--line);
+      border-radius:5px;padding:12px 16px;margin:0 0 8px}
+    .guide-toc ul{margin:6px 0 0;padding:0;list-style:none;columns:2;font-size:13px}
+    @media(max-width:560px){.guide-toc ul{columns:1}}
+    .guide-toc li{margin:2px 0 2px 14px}
+    .guide-toc li.toc-head{margin:10px 0 3px;list-style:none;font-weight:700;
+      font-size:11px;text-transform:uppercase;letter-spacing:.05em;
+      color:var(--muted);break-after:avoid}
+    .guide-toc li.toc-head:first-child{margin-top:0}
+
+    /* symptom -> setting lookup */
+    .guide-table{width:100%;border-collapse:collapse;font-size:13px;
+      background:var(--card);border:1px solid var(--line);border-radius:5px;
+      overflow:hidden;margin:0 0 8px}
+    .guide-table th{text-align:left;font-size:11px;text-transform:uppercase;
+      letter-spacing:.04em;color:var(--muted);background:#faf8f1;
+      padding:8px 12px;border-bottom:1px solid var(--line)}
+    .guide-table td{padding:9px 12px;border-bottom:1px solid var(--line);
+      vertical-align:top;line-height:1.45}
+    .guide-table tr:last-child td{border-bottom:0}
+    @media(max-width:640px){
+      .guide-table thead{display:none}
+      .guide-table td{display:block;border-bottom:0;padding:3px 12px}
+      .guide-table td:first-child{padding-top:10px}
+      .guide-table tr{display:block;border-bottom:1px solid var(--line)}
+      .guide-table tr:last-child{border-bottom:0}
+    }
+
+    /* "how big does a tree look" playground */
+    .gz-box{background:var(--card);border:1px solid var(--line);border-radius:5px;
+      padding:14px 16px;margin:0 0 10px}
+    .gz-inputs{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+    @media(max-width:560px){.gz-inputs{grid-template-columns:1fr}}
+    .gz-out{margin-top:12px;padding-top:11px;border-top:1px solid var(--line);
+      font-size:14px;line-height:1.55}
+    .gz-ok,.gz-warn{margin-top:9px;padding:7px 10px;border-radius:4px;font-size:13px}
+    .gz-ok{background:var(--green-l);color:var(--green-d);border:1px solid #cfe0ca}
+    .gz-warn{background:#fdf6e8;color:#6a5220;border:1px solid #ecdcbb}
+    .guide-wrap code{background:#f1eee4;border-radius:3px;padding:1px 5px;
+      font-size:12.5px}
   </style>
 </head>
 <body>
@@ -250,9 +399,21 @@
   </div>
 
   <header class="top">
-    <div class="wrap" style="display:flex;align-items:center;justify-content:space-between;gap:12px">
-      <h1>Tree-Crown Species Pipeline</h1>
-      <span id="whoami"></span>
+    <div class="wrap" style="display:flex;align-items:center;justify-content:space-between;gap:18px">
+      <span class="brand">
+        <h1>Tree-Crown Species Pipeline</h1>
+        <span class="tag">drone imagery to species map</span>
+      </span>
+      <span style="display:flex;align-items:center;gap:16px;flex:none">
+        <a class="guide-cta" href="#/guide">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>
+          </svg>
+          How to use this
+        </a>
+        <span id="whoami"></span>
+      </span>
     </div>
   </header>
 
@@ -340,38 +501,73 @@
           <input id="p_epsg" type="number" placeholder="e.g. 32643" />
         </div>
 
-        <p class="muted" style="margin:14px 0 2px;font-size:12px">
-          Defaults work well for most surveys — only change these if you know the
-          effect. Each field explains what it does below.</p>
+        <div class="guide-banner">
+          <p><b>Not sure what these settings do?</b>
+             The guide explains every one in plain language, with what happens
+             if you turn it up or down.</p>
+          <a class="guide-cta" href="#/guide">Open the Parameter Guide</a>
+        </div>
+        <p class="muted" style="margin:10px 0 2px;font-size:12px">
+          Defaults work well for most surveys. Each field explains what it does
+          below; the <b>?</b> beside a name opens its full explanation.</p>
 
+        <!-- Every .hint below is rendered at boot from PARAM_DOCS (see the
+             script block) via data-hint. Do not hardcode the text here — edit
+             PARAM_DOCS instead, so the field hint, the FAQ and the Parameter
+             Guide page can never drift apart. -->
         <details open>
           <summary>Detection — Detectree2 <span class="muted" style="font-weight:400">· finds individual crowns</span></summary>
           <div class="grid" style="margin-top:8px">
-            <div><label>Detector model</label>
-              <span class="hint">Detectree2 weights used to find crowns. Pick one trained on similar imagery.</span>
+            <div><label>Detector model <a class="phelp" href="#/guide#doc-model_key" title="Explain this">?</a></label>
+              <span class="hint" data-hint="model_key"></span>
               <select id="modelKey"><option>loading…</option></select></div>
           </div>
           <div class="grid3" style="margin-top:8px">
-            <div><label>tile_size</label>
-              <span class="hint">Detection tile edge (m). Smaller = finer &amp; more tiles, but slower.</span>
-              <input id="p_tile" type="number" value="10" /></div>
-            <div><label>buffer</label>
-              <span class="hint">Tile overlap (m) so crowns on tile edges aren't cut in half.</span>
-              <input id="p_buf" type="number" value="10" /></div>
-            <div><label>iou_threshold</label>
-              <span class="hint">Merge overlapping crown boxes above this (0–1). Higher = fewer merges.</span>
-              <input id="p_iou" type="number" step="0.01" value="0.9" /></div>
-            <div><label>conf_threshold</label>
-              <span class="hint">Keep detections above this confidence (0–1). Higher = fewer, surer crowns.</span>
-              <input id="p_conf" type="number" step="0.01" value="0.85" /></div>
+            <div><label>tile_size <a class="phelp" href="#/guide#doc-tile_size" title="Explain this">?</a></label>
+              <span class="hint" data-hint="tile_size"></span>
+              <input id="p_tile" type="number" min="1" max="1000" value="10" /></div>
+            <div><label>buffer <a class="phelp" href="#/guide#doc-buffer" title="Explain this">?</a></label>
+              <span class="hint" data-hint="buffer"></span>
+              <input id="p_buf" type="number" min="0" max="500" value="10" /></div>
+            <div><label>iou_threshold <a class="phelp" href="#/guide#doc-iou_threshold" title="Explain this">?</a></label>
+              <span class="hint" data-hint="iou_threshold"></span>
+              <input id="p_iou" type="number" step="0.01" min="0" max="1" value="0.9" /></div>
+            <div><label>conf_threshold <a class="phelp" href="#/guide#doc-conf_threshold" title="Explain this">?</a></label>
+              <span class="hint" data-hint="conf_threshold"></span>
+              <input id="p_conf" type="number" step="0.01" min="0" max="1" value="0.85" /></div>
+            <div><label>detections_per_image <a class="phelp" href="#/guide#doc-detections_per_image" title="Explain this">?</a></label>
+              <span class="hint" data-hint="detections_per_image"></span>
+              <input id="p_det" type="number" min="1" max="500" value="6" /></div>
+            <div><label>area_min <span class="muted">(m²)</span> <a class="phelp" href="#/guide#doc-area_min" title="Explain this">?</a></label>
+              <span class="hint" data-hint="area_min"></span>
+              <input id="p_amin" type="number" step="0.5" min="0" max="100000" value="4" /></div>
+            <div><label>area_max <span class="muted">(m²)</span> <a class="phelp" href="#/guide#doc-area_max" title="Explain this">?</a></label>
+              <span class="hint" data-hint="area_max"></span>
+              <input id="p_amax" type="number" step="10" min="1" max="100000" value="2000" /></div>
           </div>
+        </details>
+
+        <!-- Collapsed by default: these two change how the imagery reaches the
+             network, so they should be a deliberate choice, not a stray edit. -->
+        <details>
+          <summary>Advanced <span class="muted" style="font-weight:400">· changes how tiles reach the model</span></summary>
+          <div class="grid" style="margin-top:8px">
+            <div><label>min_size_test <a class="phelp" href="#/guide#doc-min_size_test" title="Explain this">?</a></label>
+              <span class="hint" data-hint="min_size_test"></span>
+              <input id="p_msize" type="number" min="256" max="2048" step="1" value="512" /></div>
+            <div><label style="margin-top:10px">
+                <input id="p_fullcov" type="checkbox" style="width:auto;margin-right:6px" />
+                full_coverage <a class="phelp" href="#/guide#doc-full_coverage" title="Explain this">?</a></label>
+              <span class="hint" data-hint="full_coverage"></span></div>
+          </div>
+          <div id="zoomNote" class="note muted" style="margin-top:6px"></div>
         </details>
 
         <details open>
           <summary>Crown embedding — DINOv2 <span class="muted" style="font-weight:400">· turns each crown into a feature vector</span></summary>
           <div class="grid" style="margin-top:8px">
-            <div><label>Feature extractor</label>
-              <span class="hint">Vision model that turns each crown into features for clustering. Also fixes the crop size each crown is resized to.</span>
+            <div><label>Feature extractor <a class="phelp" href="#/guide#doc-backbone" title="Explain this">?</a></label>
+              <span class="hint" data-hint="backbone"></span>
               <select id="backbone"><option>loading…</option></select></div>
           </div>
         </details>
@@ -379,11 +575,11 @@
         <details open>
           <summary>Clustering — PCA + KMeans <span class="muted" style="font-weight:400">· groups similar crowns</span></summary>
           <div class="grid" style="margin-top:8px">
-            <div><label>pca_components</label>
-              <span class="hint">Feature dimensions kept before clustering. Lower = faster, coarser.</span>
-              <input id="p_pca" type="number" value="50" /></div>
-            <div><label>k_list <span class="muted">(comma-separated)</span></label>
-              <span class="hint">Candidate cluster counts to try. The app recommends one of these to label.</span>
+            <div><label>pca_components <a class="phelp" href="#/guide#doc-pca_components" title="Explain this">?</a></label>
+              <span class="hint" data-hint="pca_components"></span>
+              <input id="p_pca" type="number" min="2" max="768" value="50" /></div>
+            <div><label>k_list <span class="muted">(comma-separated)</span> <a class="phelp" href="#/guide#doc-k_list" title="Explain this">?</a></label>
+              <span class="hint" data-hint="k_list"></span>
               <input id="klist" value="2,4,6,8,10" /></div>
           </div>
         </details>
@@ -469,6 +665,9 @@
       <div class="faq-card">
         <div class="faq-header">
           <h3>Guide &amp; FAQ</h3>
+          <p style="margin:0 0 10px;font-size:12.5px">
+            New to this? <a class="nav-link" href="#/guide">Read the Parameter Guide &rarr;</a>
+          </p>
           <p>New here? Start reading — or hover the <span style="background:#a8b0a0;color:#fff;border-radius:50%;display:inline-flex;width:14px;height:14px;align-items:center;justify-content:center;font-size:9px;font-family:Georgia,serif;font-style:italic">i</span> on each step.</p>
         </div>
 
@@ -613,6 +812,130 @@
 
   </div><!-- /page-layout -->
 
+  <!-- ── Parameter Guide (hash route #/guide) ──────────────────────────────
+       Third top-level view. Body copy is rendered from PARAM_DOCS by
+       renderGuide() so it cannot drift from the Step 3 field hints.
+       Scope rule: document only what the user can actually change here.
+       Server-side settings they cannot reach do not belong on this page.
+       Still to add (see docs/frontend_guide_page_plan.md): preset buttons
+       and the glossary. -->
+  <div id="guide-page">
+    <header class="top">
+      <div class="wrap" style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+        <h1>Parameter Guide</h1>
+        <a class="nav-link" href="#/">&larr; Back to pipeline</a>
+      </div>
+    </header>
+
+    <div class="guide-wrap">
+      <p class="guide-lede" style="margin-top:14px">
+        How to run a survey, and what every setting does. 
+      </p>
+
+      <div class="guide-toc">
+        <b style="font-size:13px">On this page</b>
+        <ul id="guideToc"></ul>
+      </div>
+
+      <h2 id="grp-howto">Running a survey, start to finish</h2>
+      <p class="guide-lede">
+        Five steps on one page. You can leave every setting at its default the
+        first time — the only decision that really needs you is step 4.
+      </p>
+      <div class="howto">
+        <div class="ht"><span class="ht-n">1</span><div>
+          <b>Name the project</b>
+          <p>Anything you will recognise later, like "North block, June survey".</p></div></div>
+        <div class="ht"><span class="ht-n">2</span><div>
+          <b>Upload your drone image</b>
+          <p>A GeoTIFF (.tif) from your survey, or paste a Google Drive link. Large
+             files take a few minutes.</p></div></div>
+        <div class="ht"><span class="ht-n">3</span><div>
+          <b>Press Run analysis</b>
+          <p>The tool finds every tree and sorts them into look-alike groups. Expect
+             tens of minutes for a large survey — you can close the tab and come back.</p></div></div>
+        <div class="ht"><span class="ht-n">4</span><div>
+          <b>Name the groups</b>
+          <p>Open the output files, look at the sample pictures for each group, and
+             type in the species you recognise. This is the part only a person can do.</p></div></div>
+        <div class="ht"><span class="ht-n">5</span><div>
+          <b>Finalize and export</b>
+          <p>You get a map file you can open in Google Earth or QGIS, with every tree
+             outlined and labelled.</p></div></div>
+      </div>
+      <p class="guide-lede">
+        If something looks wrong afterwards, the table below points you at the
+        setting that controls it. You do not need to read the rest of this page
+        to run the tool.
+      </p>
+
+      <h2>What happens inside, in six steps</h2>
+      <ol style="font-size:14px;line-height:1.7">
+        <li>Your survey photo is one enormous image — often 20,000 pixels across.</li>
+        <li>It is cut into small squares called <b>tiles</b>, which overlap slightly.</li>
+        <li>The model looks at each tile and draws an outline around every tree it recognises.</li>
+        <li>Outlines from neighbouring tiles are stitched together and duplicates are merged.</li>
+        <li>Each tree outline is converted into a list of numbers describing its colour and texture.</li>
+        <li>Trees with similar numbers are grouped together. Those groups are your candidate species.</li>
+      </ol>
+      <p class="guide-lede">
+        The settings you can change affect steps 2, 3, 4 and 6. Everything else is fixed.
+      </p>
+
+      <h2 id="grp-symptoms">If your map looks wrong</h2>
+      <p class="guide-lede">
+        Start here. Find what you are seeing, then follow the link to the setting
+        that controls it.
+      </p>
+      <table class="guide-table">
+        <thead><tr><th>What you see</th><th>Usual cause</th><th>Setting to try</th></tr></thead>
+        <tbody id="guideSymptoms"></tbody>
+      </table>
+
+      <h2 id="grp-zoom">How big does a tree look to the model?</h2>
+      <p>
+        This one idea explains three of the settings at once, so it is worth two
+        minutes.
+      </p>
+      <p>
+        Whatever patch of ground you ask for in a tile, it is resized to a fixed
+        picture size before the model looks at it. Think of a passport photo
+        booth: the print is always the same size, so standing further back to fit
+        more in only makes your face smaller in the print.
+      </p>
+      <p>
+        So asking for a <b>bigger tile</b> does not give the model a bigger
+        picture. It gives the same picture with everything in it
+        <b>smaller</b> — and trees that get too small are simply not found.
+      </p>
+      <p class="guide-lede">
+        Try it below. Nothing here changes your run — these boxes are just for
+        experimenting.
+      </p>
+      <div class="gz-box">
+        <div class="gz-inputs">
+          <div><label>Tile size (m)</label>
+            <input id="gz_tile" type="number" min="1" max="1000" value="10" /></div>
+          <div><label>Buffer (m)</label>
+            <input id="gz_buf" type="number" min="0" max="500" value="10" /></div>
+          <div><label>Picture size (px)</label>
+            <input id="gz_size" type="number" min="256" max="2048" value="512" /></div>
+        </div>
+        <div id="gz_out" class="gz-out"></div>
+      </div>
+      <p class="guide-lede">
+        The sum is <code>pixels per metre = picture size ÷ (tile size + 2 × buffer)</code>.
+        Notice that your camera's resolution does not appear in it — a sharper
+        survey does not make trees look bigger to the model. Only these three
+        numbers do.
+      </p>
+
+      <div id="guideCards"></div>
+
+      <p style="margin-top:26px"><a class="nav-link" href="#/">&larr; Back to pipeline</a></p>
+    </div>
+  </div><!-- /guide-page -->
+
   <footer>Tree-Crown pipeline &middot; internal tool</footer>
 
 <script>
@@ -625,6 +948,291 @@ const $ = (id) => document.getElementById(id);
 // split-port local dev: window.API_BASE = "http://localhost:8123";
 const API_BASE = (window.API_BASE || "").replace(/\/$/, "");
 const apiBase = () => API_BASE;
+
+// ── PARAM_DOCS — single source of truth for parameter documentation ──────
+// Three places used to describe these settings independently: the .hint spans
+// in Step 3, the FAQ item in the sidebar, and (now) the Parameter Guide page.
+// They drift. Everything renders from this object instead, so the text is
+// written once. `hint` is the one-liner under the field; the rest is the
+// guide card. Keys match the data-hint attributes in Step 3.
+//
+// Audience for `plain` / `analogy` / `down` / `up`: someone with a drone and
+// no ML background. Describe what they will SEE on the map, not the theory.
+const PARAM_DOCS = {
+  model_key: {
+    title: "Detector model",
+    code: "Detectree2 weights",
+    hint: "Detectree2 weights used to find crowns. Pick one trained on similar imagery.",
+    plain: "Which trained model does the looking. Each one learned from a different set of aerial photos, so each is good at different scenery.",
+    analogy: "Like hiring a surveyor. One has spent years in dense rainforest, another in an English city. Both know trees; they notice different things.",
+    down: null, up: null,
+    meta: "<b>Choose the one trained on scenery closest to yours.</b> A model trained on closed rainforest will happily mistake a green crop field for a canopy. None of the available models was trained on Indian imagery, so expect to compare two and keep the better one."
+  },
+  tile_size: {
+    title: "Tile size",
+    code: "tile_size · metres · default 10",
+    hint: "Detection tile edge (m). Smaller = finer & more tiles, but slower.",
+    plain: "How big a square of ground the model examines in one go, measured in metres on the ground.",
+    analogy: "Reading a newspaper through a square hole cut in card. A small hole shows fine print clearly but you never see the headline.",
+    down: "Large trees get split across several tiles. The model sees no surroundings to judge size against. Tile count explodes and the run takes far longer.",
+    up:   "Small trees shrink to a handful of pixels and are missed entirely.",
+    meta: "<b>Default 10 m. Commonly better: 30–40 m.</b> Change it when big trees come out in pieces, or when a run is taking hours."
+  },
+  buffer: {
+    title: "Buffer",
+    code: "buffer · metres · default 10",
+    hint: "Tile overlap (m) so crowns on tile edges aren't cut in half.",
+    plain: "Extra ground included around every tile so a tree sitting on a tile boundary still appears whole in at least one tile.",
+    analogy: "Overlapping the edges when you photograph a long wall in sections, so nothing falls in the gap between shots.",
+    down: "Trees straddling a tile edge get cut in half and may be counted twice or missed.",
+    up:   "More overlapping ground is processed twice, so the run gets slower for no extra coverage.",
+    meta: "<b>Default 10 m. Rule of thumb: at least half the width of your largest tree.</b> A 30 m banyan wants roughly 15 m."
+  },
+  iou_threshold: {
+    title: "Overlap merge threshold",
+    code: "iou_threshold · 0–1 · default 0.9",
+    hint: "Merge overlapping crown boxes above this (0–1). Higher = fewer merges.",
+    plain: "How much two outlines must overlap before the app decides they are the same tree and keeps only one.",
+    analogy: "Deduplicating a guest list. Set the bar very high and you only merge exact duplicates, so near-identical entries both survive.",
+    down: "Distinct but touching trees get merged into one blob.",
+    up:   "The same tree stays outlined two or three times, inflating your count.",
+    meta: "<b>Default 0.9, which is unusually permissive. The library's own default is 0.7.</b> Lower it toward 0.6 if neighbouring crowns are being merged."
+  },
+  conf_threshold: {
+    title: "Confidence threshold",
+    code: "conf_threshold · 0–1 · default 0.85",
+    hint: "Keep detections above this confidence (0–1). Higher = fewer, surer crowns.",
+    plain: "How certain the model must be before an outline is kept. Every detection carries a score from 0 to 1.",
+    analogy: "A spam filter's strictness. Turn it up and your inbox is clean but real mail goes missing.",
+    down: "More real trees found, but also more bushes, hedges and green rooftops.",
+    up:   "Only obvious, isolated trees survive. Anything partly shaded or overlapping is dropped.",
+    meta: "<b>Default 0.85 is strict.</b> Start around 0.4–0.5 on new imagery, look at the map, then tighten. Lowering it is the first thing to try when very few crowns appear."
+  },
+  detections_per_image: {
+    title: "Max crowns per tile",
+    code: "detections_per_image · default 6 · allowed 1–500",
+    hint: "Cap on crowns reported per tile. Extras are dropped without warning.",
+    plain: "The most trees that can be reported from any one tile. If a tile holds more than this, the rest are thrown away silently.",
+    analogy: "A form with only six lines for names. A seventh guest simply does not get written down.",
+    down: "Dense areas are under-counted, and nothing tells you it happened — the map just looks sparse where the trees are thickest.",
+    up:   "Slightly slower, and low-confidence guesses start appearing. Not harmful, but raise the confidence threshold with it.",
+    meta: "<b>Default 6. The detection library's own default is 100.</b> Six is far too low for anything but a very small tile — one 60 m tile over an orchard can hold fifty trees. Raise this first if your map looks emptier than the imagery."
+  },
+  area_min: {
+    title: "Smallest crown to keep",
+    code: "area_min · m² · default 4",
+    hint: "Outlines smaller than this are discarded after detection.",
+    plain: "Anything smaller than this is treated as a bush, a shadow or noise rather than a tree.",
+    analogy: "A sieve. Set the mesh too fine and you keep the grit along with the grain.",
+    down: "Shrubs, hedge sections and shadow fragments start appearing as trees.",
+    up:   "Genuine young or small trees are thrown away.",
+    meta: "<b>Default 4 m², about a 2.3 m crown.</b> Raise toward 6–10 m² if small noise is cluttering the map."
+  },
+  area_max: {
+    title: "Largest crown to keep",
+    code: "area_max · m² · default 2000",
+    hint: "Outlines larger than this are discarded after detection.",
+    plain: "Anything bigger than this is assumed to be a mistake rather than one very large tree.",
+    analogy: "A weight limit on a parcel. Past a point it is not a parcel any more, it is furniture.",
+    down: "Real large trees — a mature banyan can exceed 700 m² — get deleted.",
+    up:   "A whole green field or a block of joined canopy can be reported as one enormous tree.",
+    meta: "<b>Default 2000 m², about a 50 m crown — generous.</b> Over farmland, 700 m² is a tighter and safer limit, since that is the main defence against a green crop plot being reported as a single tree. Always sort your results by area and check the largest twenty."
+  },
+  min_size_test: {
+    title: "Picture size fed to the model",
+    code: "min_size_test · pixels · default 512",
+    hint: "Every tile is resized to this before the model sees it. Sets the zoom.",
+    plain: "Whatever ground you asked for in a tile, it is squeezed or stretched to this many pixels before the model looks at it.",
+    analogy: "A passport photo booth. The print is always the same size, so standing back to fit more in only makes your face smaller.",
+    down: "Everything in the tile appears smaller, and small trees fall below what the model can recognise.",
+    up:   "Everything appears larger and slower to process. Stretching beyond the original detail invents nothing new.",
+    meta: "<b>Default 512. The models here were trained near 1000.</b> This and the tile footprint work as a pair: <code>pixels per metre = min_size_test ÷ (tile_size + 2 × buffer)</code>. Changing the tile alone moves only half the fraction."
+  },
+  full_coverage: {
+    title: "Include the image edges",
+    code: "full_coverage · default off",
+    hint: "Also tile the leftover strip along the right and bottom edges.",
+    plain: "Tiles are laid out in a grid, and the grid rarely divides the image exactly. This decides whether the leftover strip is processed too.",
+    analogy: "Tiling a floor. Turn this off and you leave the awkward last row against the wall bare.",
+    down: null,
+    up:   null,
+    meta: "<b>Off by default, which silently skips a strip along two edges of every survey.</b> Turn it on unless you have a reason not to; the cost is a handful of extra tiles."
+  },
+  backbone: {
+    title: "Feature extractor",
+    code: "DINOv2 backbone",
+    hint: "Vision model that turns each crown into features for clustering. Also fixes the crop size each crown is resized to.",
+    plain: "Turns each detected crown into a list of numbers describing its colour and texture, so crowns can be compared to one another.",
+    analogy: "Describing each tree on an index card using the same fields every time. You then sort the cards by how alike the descriptions are.",
+    down: null, up: null,
+    meta: "It has no effect on which trees are found — only on how they are grouped afterwards. Larger backbones are slower and describe crowns in more detail."
+  },
+  pca_components: {
+    title: "PCA components",
+    code: "pca_components · default 50",
+    hint: "Feature dimensions kept before clustering. Lower = faster, coarser.",
+    plain: "Each crown starts as hundreds of numbers. This compresses them to the most informative few before grouping.",
+    analogy: "Summarising a long report down to its main points. Keep too few and you lose the distinctions that mattered.",
+    down: "Grouping gets coarse — genuinely different species may land in one cluster.",
+    up:   "Slower, and past a point it adds noise rather than detail. It can never exceed the number of crowns you actually detected.",
+    meta: "<b>Default 50 is sensible.</b> Leave it alone unless a run has very few crowns, in which case it is automatically capped."
+  },
+  k_list: {
+    title: "Candidate cluster counts",
+    code: "k_list · comma-separated · default 2,4,6,8,10",
+    hint: "Candidate cluster counts to try. The app recommends one of these to label.",
+    plain: "How many groups to sort the trees into. The app tries every number you list and recommends one, but you make the final call.",
+    analogy: "Sorting a bag of mixed screws. Into how many trays? There is no single right answer — it depends on how finely you care to distinguish them.",
+    down: "Too few groups and distinct species end up sharing a tray.",
+    up:   "Too many and the same species is split across several trays.",
+    meta: "<b>Start with the default spread.</b> If you already expect roughly six species, try 4,5,6,7,8 to look closely around that number. The groups come out unnamed — they are crowns that look alike, not species, until you name them in the labelling step."
+  }
+};
+
+// How the guide page organises the cards. Grouped rather than one flat list of
+// thirteen, and ordered to match the form so the page reads in the same order
+// the user meets the fields.
+const GUIDE_GROUPS = [
+  { title: "Finding the trees",
+    intro: "These decide how many trees are found and how their outlines are drawn.",
+    keys: ["model_key","tile_size","buffer","iou_threshold","conf_threshold",
+           "detections_per_image","area_min","area_max"] },
+  { title: "Advanced",
+    intro: "These change how the picture reaches the model. Worth understanding "
+         + "before touching, but they are also the settings with the biggest effect.",
+    keys: ["min_size_test","full_coverage"] },
+  { title: "Sorting the trees into groups",
+    intro: "These run after every tree has been found. They do not change what "
+         + "was detected — only how the trees are grouped afterwards.",
+    keys: ["backbone","pca_components","k_list"] }
+];
+
+// Reverse lookup: people arrive with a map that looks wrong, not with a
+// parameter in mind. Each row links to the card that fixes it.
+const GUIDE_SYMPTOMS = [
+  ["Large trees come out chopped into pieces", "The tile is smaller than the tree", ["tile_size","buffer"]],
+  ["One outline covers several trees",         "Outlines are being merged too eagerly", ["iou_threshold"]],
+  ["The same tree is outlined twice",          "Outlines are not being merged enough", ["iou_threshold"]],
+  ["Far fewer trees than you can see",         "The model is being too cautious, or the per-tile cap is low", ["conf_threshold","detections_per_image"]],
+  ["Dense areas look emptier than sparse ones","The per-tile cap is throwing away the extras", ["detections_per_image"]],
+  ["A field or lawn is marked as one big tree","Nothing is limiting how large an outline may be", ["area_max"]],
+  ["Bushes and shadows counted as trees",      "The smallest allowed outline is too small", ["area_min","conf_threshold"]],
+  ["Nothing found along the right or bottom edge", "The leftover strip is not being processed", ["full_coverage","buffer"]],
+  ["The run takes hours",                      "Too many tiles", ["tile_size"]],
+  ["Groups at the end look meaningless",       "Usually the detection was poor, not the grouping", ["k_list","conf_threshold"]]
+];
+
+const esc = (s) => String(s).replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+
+// Fill the one-line hints under each Step 3 field from PARAM_DOCS.
+function renderHints(){
+  document.querySelectorAll("[data-hint]").forEach(el => {
+    const d = PARAM_DOCS[el.dataset.hint];
+    if(d) el.textContent = d.hint;
+  });
+}
+
+function paramCard(key, d){
+  const effects = (d.down || d.up)
+    ? '<div class="pc-effects">'
+      + (d.down ? '<div class="pc-eff eff-down"><b>Turn it down and…</b>'+esc(d.down)+'</div>' : '')
+      + (d.up   ? '<div class="pc-eff eff-up"><b>Turn it up and…</b>'+esc(d.up)+'</div>'     : '')
+      + '</div>'
+    : '';
+  return '<div class="param-card" id="doc-'+key+'">'
+    + '<h3>'+esc(d.title)+'</h3>'
+    + '<div class="pc-code">'+esc(d.code)+'</div>'
+    + '<p class="pc-plain">'+esc(d.plain)+'</p>'
+    + (d.analogy ? '<p class="pc-analogy">'+esc(d.analogy)+'</p>' : '')
+    + effects
+    + (d.meta ? '<div class="pc-meta">'+d.meta+'</div>' : '')
+    + '</div>';
+}
+
+// Links inside the guide must keep the "#/guide" prefix. A bare "#doc-x"
+// replaces the whole hash, drops the route, and bounces the user back to the
+// pipeline — which is exactly the bug the first version of the TOC had.
+const docLink = (k, text) =>
+  '<a href="#/guide#doc-'+k+'">'+esc(text || (PARAM_DOCS[k] || {}).title || k)+'</a>';
+
+let guideRendered = false;
+function renderGuide(){
+  if(guideRendered) return;
+  const cards = $("guideCards"), toc = $("guideToc"), symp = $("guideSymptoms");
+  if(!cards) return;
+
+  cards.innerHTML = GUIDE_GROUPS.map(g =>
+      '<h2 id="grp-'+g.title.replace(/\W+/g,"-").toLowerCase()+'">'+esc(g.title)+'</h2>'
+    + '<p class="guide-lede">'+esc(g.intro)+'</p>'
+    + g.keys.filter(k => PARAM_DOCS[k]).map(k => paramCard(k, PARAM_DOCS[k])).join("")
+  ).join("");
+
+  toc.innerHTML =
+      '<li class="toc-head">Start here</li>'
+    + '<li><a href="#/guide#grp-howto">Running a survey, start to finish</a></li>'
+    + '<li><a href="#/guide#grp-symptoms">If your map looks wrong</a></li>'
+    + '<li><a href="#/guide#grp-zoom">How big does a tree look?</a></li>'
+    + GUIDE_GROUPS.map(g =>
+        '<li class="toc-head">'+esc(g.title)+'</li>'
+      + g.keys.filter(k => PARAM_DOCS[k]).map(k => '<li>'+docLink(k)+'</li>').join("")
+      ).join("");
+
+  if(symp){
+    symp.innerHTML = GUIDE_SYMPTOMS.map(([what, why, keys]) =>
+      '<tr><td><b>'+esc(what)+'</b></td><td>'+esc(why)+'</td><td>'
+      + keys.map(k => docLink(k)).join(", ") + '</td></tr>').join("");
+  }
+
+  updateGuideZoom();
+  guideRendered = true;
+}
+
+// Guide's own copy of the zoom sum, driven by its two demo inputs rather than
+// the live form, so a reader can experiment without disturbing their run.
+function updateGuideZoom(){
+  const t = $("gz_tile"), b = $("gz_buf"), m = $("gz_size"), out = $("gz_out");
+  if(!t || !out) return;
+  const foot = (+t.value) + 2*(+b.value);
+  const ppm  = (+m.value) / foot;
+  if(!isFinite(ppm) || foot <= 0){ out.textContent = "Enter a tile size first."; return; }
+  const px5 = Math.round(5*ppm), px12 = Math.round(12*ppm);
+  const ok  = px5 >= 40 && px12 <= 400;
+  out.innerHTML =
+      '<div>Each tile covers <b>'+foot+' m</b> of ground.</div>'
+    + '<div>That is <b>'+ppm.toFixed(1)+' pixels for every metre</b>.</div>'
+    + '<div style="margin-top:6px">A <b>5 m</b> tree reaches the model as about <b>'+px5+' pixels</b>.</div>'
+    + '<div>A <b>12 m</b> tree reaches it as about <b>'+px12+' pixels</b>.</div>'
+    + '<div class="'+(ok?"gz-ok":"gz-warn")+'">'
+    + (ok ? "Good — that is the size range these models learned on."
+          : "Outside the 100–300 pixel range these models learned on. Trees this size may be missed.")
+    + '</div>';
+}
+
+// ── Hash router ─────────────────────────────────────────────────────────
+// Two routes only: "#/guide" shows the guide, anything else shows the app.
+// The app markup is hidden rather than removed, so a half-filled Step 3
+// survives a trip to the guide and back.
+function route(){
+  const onGuide = location.hash.startsWith("#/guide");
+  if(onGuide) renderGuide();
+  document.body.classList.toggle("show-guide", onGuide);
+  // Deep links look like "#/guide#doc-conf_threshold" — scroll to that card.
+  const anchor = onGuide ? location.hash.split("#")[2] : null;
+  // Defer one frame: the guide was display:none until the line above, so it
+  // has no layout yet and scrollIntoView would land in the wrong place.
+  requestAnimationFrame(() => {
+    const el = anchor && document.getElementById(anchor);
+    if(el) el.scrollIntoView({behavior:"smooth", block:"start"});
+    else   window.scrollTo(0, 0);
+  });
+}
+
+// Clicking the link you are already on fires no hashchange, so the page would
+// sit still and look broken. Re-scroll explicitly.
+document.addEventListener("click", (e) => {
+  const a = e.target.closest && e.target.closest('a[href^="#/guide#"]');
+  if(a && a.getAttribute("href") === location.hash) route();
+});
 
 // ── Google Identity Services (GIS) auth — client-side token flow ────────
 // The access token is kept in memory only (never localStorage/cookie). We only
@@ -849,8 +1457,83 @@ function backboneImgSize(){
   return (o && +o.dataset.img) || 224;
 }
 
+// ── Client-side parameter validation ────────────────────────────────────
+// Mirrors the bounds in PipelineParams (app/schemas/project.py). This is for
+// feel, not safety — the backend enforces the same rules, because params are
+// persisted onto the project and the API is also called by Airflow callbacks
+// and scripts that never touch this page. Keep the two in sync.
+const PARAM_BOUNDS = {
+  p_tile:  {min:1,   max:1000,   label:"tile_size"},
+  p_buf:   {min:0,   max:500,    label:"buffer"},
+  p_iou:   {min:0,   max:1,      label:"iou_threshold"},
+  p_conf:  {min:0,   max:1,      label:"conf_threshold"},
+  p_det:   {min:1,   max:500,    label:"detections_per_image"},
+  p_amin:  {min:0,   max:100000, label:"area_min"},
+  p_amax:  {min:1,   max:100000, label:"area_max"},
+  p_msize: {min:256, max:2048,   label:"min_size_test"},
+  p_pca:   {min:2,   max:768,    label:"pca_components"}
+};
+
+function paramErrors(){
+  const errs = [];
+  for(const [id, b] of Object.entries(PARAM_BOUNDS)){
+    const el = $(id); if(!el) continue;
+    const v = parseFloat(el.value);
+    const bad = el.value.trim()==="" || isNaN(v) || v < b.min || v > b.max;
+    el.style.borderColor = bad ? "var(--err)" : "";
+    if(bad) errs.push(b.label+" must be between "+b.min+" and "+b.max);
+  }
+  // Cross-field: the backend applies the same rule to the merged params.
+  const elMin = $("p_amin"), elMax = $("p_amax");
+  if(elMin && elMax){
+    const amin = parseFloat(elMin.value), amax = parseFloat(elMax.value);
+    if(!isNaN(amin) && !isNaN(amax) && amin >= amax){
+      elMin.style.borderColor = "var(--err)";
+      elMax.style.borderColor = "var(--err)";
+      errs.push("area_min must be smaller than area_max");
+    }
+  }
+  return errs;
+}
+
+// Live "how big will a tree look" readout, shown in the Advanced block.
+// pixels_per_metre = min_size_test / (tile_size + 2 * buffer) — GSD cancels.
+function updateZoomNote(){
+  const note = $("zoomNote"); if(!note) return;
+  const foot = (+$("p_tile").value) + 2*(+$("p_buf").value);
+  const ppm  = (+$("p_msize").value) / foot;
+  if(!isFinite(ppm) || foot <= 0){ note.textContent = ""; return; }
+  const px5 = Math.round(5*ppm), px12 = Math.round(12*ppm);
+  const ok  = px5 >= 40 && px12 <= 400;
+  note.innerHTML = "Each tile covers <b>"+foot+" m</b> of ground at <b>"
+    + ppm.toFixed(1) + " pixels per metre</b>. A 5 m tree reaches the model as ~"
+    + px5 + " px, a 12 m tree as ~" + px12 + " px. "
+    + (ok ? "That sits in the range these models were trained on."
+          : '<span class="warn">That is outside the 100–300 px range these models were trained on.</span>');
+}
+
+function validateParams(){
+  const errs = paramErrors();
+  // Never touch the button or the status line mid-run: analyze() owns both
+  // while a job is in flight, and re-enabling the button there would let the
+  // user fire a second run.
+  const running = $("aprog") && $("aprog").style.display === "block";
+  if(!running){
+    const btn = $("btnAnalyze"); if(btn) btn.disabled = errs.length > 0;
+    const info = $("ainfo");
+    if(info) info.innerHTML = errs.length ? '<span class="err">'+errs[0]+'</span>' : "";
+  }
+  updateZoomNote();
+  return errs;
+}
+
 async function analyze(){
   if(!PID) return alert("Create a project first");
+  const errs = paramErrors();
+  if(errs.length){
+    $("ainfo").innerHTML = '<span class="err">'+errs[0]+'</span>';
+    return;
+  }
   if($("epsgFallback").style.display!=="none" && $("p_epsg").value.trim()===""){
     $("ainfo").innerHTML='<span class="err">Enter the source EPSG — it could not be detected from the GeoTIFF.</span>';
     return;
@@ -868,6 +1551,10 @@ async function analyze(){
       params:{
         tile_size:+$("p_tile").value, buffer:+$("p_buf").value,
         iou_threshold:+$("p_iou").value, conf_threshold:+$("p_conf").value,
+        detections_per_image:+$("p_det").value,
+        area_min:+$("p_amin").value, area_max:+$("p_amax").value,
+        min_size_test:+$("p_msize").value,
+        full_coverage:$("p_fullcov").checked,
         pca_components:+$("p_pca").value,
         img_size: backboneImgSize(), k_list:klist,
         model_name:$("backbone").value||undefined
@@ -897,7 +1584,9 @@ async function analyze(){
     if(c.recommended_k){ $("ck").value=c.recommended_k; buildClusterRows(); }
     log("analyze done"); await refreshProject(); renderClusterReview(c);
   }catch(e){ $("ainfo").innerHTML='<span class="err">'+e.message+'</span>'; log("analyze failed: "+e.message); }
-  finally{ $("btnAnalyze").disabled=false; $("aprog").style.display="none"; }
+  // Re-enable via validateParams, not unconditionally: the user may have edited
+  // a field into an invalid state while the run was in flight.
+  finally{ $("aprog").style.display="none"; validateParams(); }
 }
 
 // ── Cluster review: plots + per-k CSV, straight from the FileBrowser share ──
@@ -1127,21 +1816,54 @@ async function submitConsent(){
 }
 
 // ── Landing: list the user's past runs + their public FileBrowser links ──
+// Relative day label, falling back to an absolute date past a week. The API
+// returns updated_at as an ISO string (see /projects/mine).
+function runDate(iso){
+  if(!iso) return {short:"", full:""};
+  const d = new Date(iso);
+  if(isNaN(d)) return {short:"", full:""};
+  const days = Math.floor((Date.now() - d.getTime()) / 86400000);
+  const abs = d.toLocaleDateString(undefined,{day:"numeric",month:"short",year:"numeric"});
+  let short = abs;
+  if(days <= 0) short = "today";
+  else if(days === 1) short = "yesterday";
+  else if(days < 7) short = days + " days ago";
+  return {short, full: abs + ", " + d.toLocaleTimeString(undefined,{hour:"2-digit",minute:"2-digit"})};
+}
+
 async function loadMyProjects(){
   try{
     const res=await api("/api/v1/projects/mine");
     const list=(res&&res.projects)||[];
     if(!list.length) return;
-    let html='<div style="font-weight:600;margin-bottom:4px">Your past runs</div><ul style="margin:4px 0">';
+
+    // Collapsed by default: this list grows without bound and was pushing the
+    // actual workflow off the screen. <details> keeps it one click away.
+    let rows="";
     for(const p of list){
-      const nm=(p.name||p.project_id.slice(0,8))+(p.run_name?` · ${p.run_name}`:"");
-      html+=`<li>${nm} <span class="pill">${p.state}</span>`;
-      if(p.files_url) html+=` <a href="${p.files_url}" target="_blank">Browse files →</a>`;
-      html+='</li>';
+      const nm  = esc(p.name || p.project_id.slice(0,8));
+      const run = p.run_name ? '<span class="run-sub">'+esc(p.run_name)+'</span>' : "";
+      const d   = runDate(p.updated_at);
+      rows += '<li class="run-row">'
+            +   '<span class="run-name">'+nm+run+'</span>'
+            +   '<span class="pill">'+esc(p.state)+'</span>'
+            +   '<span class="run-when" title="'+esc(d.full)+'">'+esc(d.short)+'</span>'
+            +   (p.files_url
+                  ? '<a href="'+p.files_url+'" target="_blank" rel="noopener">Files &rarr;</a>'
+                  : '<span></span>')
+            + '</li>';
     }
-    html+='</ul>';
+    const newest = runDate(list[0] && list[0].updated_at).short;
     const box=document.getElementById("pastRuns");
-    if(box){ box.innerHTML=html; box.style.display="block"; }
+    if(box){
+      box.innerHTML =
+          '<details class="runs">'
+        +   '<summary><b>Your past runs</b> <span class="muted">('+list.length
+        +     (newest ? ' &middot; latest '+esc(newest) : '')+')</span></summary>'
+        +   '<ul class="run-list">'+rows+'</ul>'
+        + '</details>';
+      box.style.display="block";
+    }
   }catch(e){ /* best-effort; no past-runs panel if unauthenticated / none */ }
 }
 
@@ -1236,6 +1958,23 @@ function initGateCanvas(){
 // unconfigured deploy), bypass the gate so the pipeline stays usable,
 // matching backend auth_enabled=False.
 window.addEventListener("load", ()=>{
+  // Independent of auth: field hints and the guide route are static content.
+  renderHints();
+  route();
+  window.addEventListener("hashchange", route);
+
+  // Live parameter validation + the pixels-per-metre readout.
+  Object.keys(PARAM_BOUNDS).concat(["p_msize"]).forEach(id => {
+    const el = $(id); if(el) el.addEventListener("input", validateParams);
+  });
+  validateParams();
+
+  // The guide's standalone calculator. Separate inputs from the form on
+  // purpose, so reading the guide can never disturb a configured run.
+  ["gz_tile","gz_buf","gz_size"].forEach(id => {
+    const el = $(id); if(el) el.addEventListener("input", updateGuideZoom);
+  });
+
   if(AUTH_CONFIGURED){
     initGis();                         // gate stays visible until sign-in / guest
     initGateCanvas();                  // animate the landing plate

@@ -18,6 +18,12 @@ detectors:
   randresize:
     file: 230103_randresize_full.pth
     description: Random-resize full model (2023-01-03).
+  flexi:
+    file: 250312_flexi.pth
+    description: Generalist — urban + closed canopy
+  tropical_closed:
+    file: 250711_tropical_closed_canopy.pth
+    description: Dense tropical forest only.
 
 # ── DINOv2 feature-extraction backbones (model_name) ─────────────────────
 # `name` must be a valid timm model identifier. `img_size` documents the

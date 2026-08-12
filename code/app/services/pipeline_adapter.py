@@ -40,6 +40,14 @@ def build_config(project) -> types.SimpleNamespace:
     cfg.BUFFER = params.get("buffer", 10)
     cfg.IOU_THRESHOLD = params.get("iou_threshold", 0.9)
     cfg.CONF_THRESHOLD = params.get("conf_threshold", 0.85)
+    # Defaults below mirror predict.py's DEFAULT_* constants — keep in sync
+    # with PipelineParams so an older project without these keys behaves
+    # exactly as it did before they were exposed.
+    cfg.DETECTIONS_PER_IMAGE = params.get("detections_per_image", 6)
+    cfg.MIN_SIZE_TEST = params.get("min_size_test", 512)
+    cfg.AREA_MIN = params.get("area_min", 4)
+    cfg.AREA_MAX = params.get("area_max", 2000)
+    cfg.FULL_COVERAGE = params.get("full_coverage", False)
 
     # folders
     cfg.WORKDIR = p["work"]

@@ -1,0 +1,573 @@
+<title>Detectree2 — Model Overview</title>
+<style>
+  :root {
+    --ink:    #1c2219;
+    --paper:  #f5f3ee;
+    --card:   #fffdf7;
+    --green:  #2f6b3f;
+    --green-d:#1a3a24;
+    --green-l:#eaf1e7;
+    --sage:   #4a7c59;
+    --muted:  #22241f;
+    --line:   #dedad0;
+    --amber:  #b4791f;
+    --tag-bg: #e8f0e5;
+    --shadow: rgba(28,34,25,.10);
+  }
+  @media(prefers-color-scheme:dark){
+    :root{
+      --ink:#e8e5de;--paper:#141a12;--card:#1c2419;
+      --green:#6daa7e;--green-d:#9dcfaa;--green-l:#1e2e1e;
+      --sage:#7aaa89;--muted:#d7d9d1;--line:#2a3428;
+      --amber:#d4a04a;--tag-bg:#1e2e1e;--shadow:rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="dark"]{
+    --ink:#e8e5de;--paper:#141a12;--card:#1c2419;
+    --green:#6daa7e;--green-d:#9dcfaa;--green-l:#1e2e1e;
+    --sage:#7aaa89;--muted:#d7d9d1;--line:#2a3428;
+    --amber:#d4a04a;--tag-bg:#1e2e1e;--shadow:rgba(0,0,0,.35);
+  }
+  :root[data-theme="light"]{
+    --ink:#1c2219;--paper:#f5f3ee;--card:#fffdf7;
+    --green:#2f6b3f;--green-d:#1a3a24;--green-l:#eaf1e7;
+    --sage:#4a7c59;--muted:#22241f;--line:#dedad0;
+    --amber:#b4791f;--tag-bg:#e8f0e5;--shadow:rgba(28,34,25,.10);
+  }
+
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font:26px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--paper);color:var(--ink);
+    height:100vh;overflow:hidden;
+    display:flex;flex-direction:column;
+  }
+
+  /* nav bar */
+  .topbar{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:10px 24px;border-bottom:1px solid var(--line);
+    background:var(--card);flex-shrink:0;
+  }
+  .topbar-left{display:flex;align-items:center;gap:14px}
+  .logo{font-family:Georgia,serif;font-size:16.5px;font-weight:600;color:var(--green)}
+  .deck-title{font-size:15.5px;color:var(--muted)}
+  .topbar-right{display:flex;align-items:center;gap:10px}
+  .slide-counter{font-size:15.5px;color:var(--muted);font-variant-numeric:tabular-nums;min-width:52px;text-align:right}
+  .nav-btn{
+    background:none;border:1px solid var(--line);border-radius:4px;
+    padding:5px 11px;cursor:pointer;color:var(--ink);font-size:15.5px;
+    transition:background .12s,border-color .12s;
+  }
+  .nav-btn:hover{background:var(--green-l);border-color:var(--sage)}
+  .nav-btn:disabled{opacity:.35;cursor:default}
+
+  /* slides viewport */
+  .deck{flex:1;position:relative;overflow:hidden}
+  .slide{
+    position:absolute;inset:0;padding:44px 60px;
+    display:flex;flex-direction:column;justify-content:center;
+    opacity:0;pointer-events:none;overflow-y:auto;
+    transition:opacity .25s ease, transform .25s ease;
+    transform:translateX(32px);
+  }
+  .slide.active{opacity:1;pointer-events:auto;transform:none}
+  .slide.exit-left{opacity:0;transform:translateX(-32px)}
+
+  /* progress bar */
+  .progress-rail{height:3px;background:var(--line);flex-shrink:0}
+  .progress-fill{height:100%;background:var(--green);transition:width .3s ease}
+
+  /* typography */
+  .eyebrow{
+    font-size:19px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--amber);margin-bottom:14px;
+  }
+  h1.slide-title{
+    font-family:Georgia,"Times New Roman",serif;
+    font-size:clamp(46px,5.6vw,76px);line-height:1.05;font-weight:600;
+    color:var(--ink);text-wrap:balance;margin-bottom:12px;
+  }
+  h2.slide-title{
+    font-family:Georgia,"Times New Roman",serif;
+    font-size:clamp(34px,4.4vw,55px);line-height:1.12;font-weight:600;
+    color:var(--ink);text-wrap:balance;margin-bottom:18px;
+  }
+  .subtitle{font-size:24px;color:var(--muted);max-width:640px;line-height:1.6;margin-bottom:0}
+  .meta{font-size:18px;color:var(--muted);margin-top:18px;display:flex;gap:18px;flex-wrap:wrap}
+  .meta span{display:flex;align-items:center;gap:5px}
+  .dot{width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block}
+
+  /* layout helpers */
+  .two-col{display:grid;grid-template-columns:1fr 1fr;gap:32px;align-items:start}
+  .three-col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;align-items:start}
+  .body-text{font-size:24px;color:var(--muted);line-height:1.65;max-width:720px}
+
+  /* cards */
+  .card{
+    background:var(--card);border:1px solid var(--line);border-radius:6px;
+    padding:18px 22px;box-shadow:0 1px 3px var(--shadow);
+  }
+  .card h3{font-family:Georgia,serif;font-size:22px;font-weight:600;color:var(--green);margin-bottom:8px}
+  .card p{font-size:20px;color:var(--muted);line-height:1.6}
+  .card .stat{font-size:34px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums;line-height:1;margin-bottom:4px}
+  .card .stat-label{font-size:16.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em}
+
+  /* tag */
+  .tag{
+    display:inline-block;background:var(--tag-bg);color:var(--green);
+    border-radius:20px;padding:2px 10px;font-size:16.5px;font-weight:600;
+    margin:2px 3px 2px 0;
+  }
+  .tag.amber{background:#fdf3e3;color:var(--amber)}
+  :root[data-theme="dark"] .tag.amber{background:#2e2010;color:var(--amber)}
+  @media(prefers-color-scheme:dark){.tag.amber{background:#2e2010;color:var(--amber)}}
+
+  /* bullet list */
+  .blist{list-style:none;margin-top:8px}
+  .blist li{
+    font-size:21px;color:var(--muted);padding:8px 0 8px 20px;
+    position:relative;border-bottom:1px solid var(--line);line-height:1.5;
+  }
+  .blist li:last-child{border-bottom:0}
+  .blist li::before{content:'';position:absolute;left:0;top:16px;
+    width:6px;height:6px;border-radius:50%;background:var(--sage)}
+  .blist li strong{color:var(--ink)}
+
+  /* numbered step list */
+  .steps{list-style:none;counter-reset:step;margin-top:10px}
+  .steps li{
+    counter-increment:step;position:relative;padding:10px 0 10px 46px;
+    border-bottom:1px solid var(--line);font-size:21px;color:var(--muted);line-height:1.5;
+  }
+  .steps li:last-child{border-bottom:0}
+  .steps li::before{
+    content:counter(step);position:absolute;left:0;top:8px;
+    width:30px;height:30px;border-radius:50%;background:var(--green-l);color:var(--green-d);
+    font-weight:700;font-size:14px;display:flex;align-items:center;justify-content:center;
+    font-family:Georgia,serif;
+  }
+  .steps li strong{color:var(--ink)}
+
+  /* flow list (pipeline steps, tagged detectree2 vs custom) */
+  .flow{list-style:none;margin-top:10px}
+  .flow li{
+    display:flex;align-items:flex-start;gap:14px;padding:9px 0;
+    border-bottom:1px solid var(--line);font-size:21px;color:var(--muted);line-height:1.45;
+  }
+  .flow li:last-child{border-bottom:0}
+  .flow li .flow-tag{
+    flex-shrink:0;font-size:13.5px;font-weight:700;letter-spacing:.04em;
+    border-radius:4px;padding:3px 8px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+    min-width:104px;text-align:center;
+  }
+  .flow li .flow-tag.dt2{background:var(--green-l);color:var(--green-d)}
+  .flow li .flow-tag.custom{background:#fdf3e3;color:var(--amber)}
+  :root[data-theme="dark"] .flow li .flow-tag.custom{background:#2e2010}
+  @media(prefers-color-scheme:dark){.flow li .flow-tag.custom{background:#2e2010}}
+  .flow li strong{color:var(--ink)}
+
+  /* code pill */
+  code{background:var(--green-l);color:var(--green);padding:1px 7px;
+    border-radius:3px;font:19px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace}
+
+  /* title slide specific */
+  .title-slide{background:var(--paper)}
+  .title-rule{width:48px;height:3px;background:var(--green);border-radius:2px;margin-bottom:28px}
+  .week-badge{
+    display:inline-block;border:1px solid var(--green);color:var(--green);
+    border-radius:20px;padding:5px 15px;font-size:17px;font-weight:600;
+    margin-bottom:22px;background:var(--green-l);
+  }
+
+  /* stat row */
+  .stat-row{display:flex;gap:20px;flex-wrap:wrap;margin-top:20px}
+  .stat-box{
+    background:var(--card);border:1px solid var(--line);border-radius:6px;
+    padding:14px 20px;min-width:120px;
+  }
+  .stat-box .n{font-size:32px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums}
+  .stat-box .l{font-size:16px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-top:2px}
+
+  /* warn / ok boxes */
+  .warn-box{
+    background:#fdf6ec;border:1px solid #e8c88a;border-left:3px solid var(--amber);
+    border-radius:5px;padding:14px 18px;font-size:21px;color:#6b4e1a;
+    margin-top:16px;line-height:1.5;
+  }
+  :root[data-theme="dark"] .warn-box{background:#2a1e0a;border-color:#5a3e10;border-left-color:var(--amber);color:#c4984a}
+  @media(prefers-color-scheme:dark){.warn-box{background:#2a1e0a;border-color:#5a3e10;border-left-color:var(--amber);color:#c4984a}}
+
+  .ok-box{
+    background:var(--green-l);border:1px solid #b8d8c0;border-left:3px solid var(--green);
+    border-radius:5px;padding:14px 18px;font-size:21px;color:var(--green-d);
+    margin-top:16px;line-height:1.5;
+  }
+  :root[data-theme="dark"] .ok-box{background:#1a2e1e;border-color:#2a5a34;border-left-color:var(--green);color:var(--green)}
+  @media(prefers-color-scheme:dark){.ok-box{background:#1a2e1e;border-color:#2a5a34;border-left-color:var(--green);color:var(--green)}}
+
+  /* parameter reference table */
+  .ptable-wrap{overflow-x:auto}
+  .ptable{width:100%;border-collapse:collapse}
+  .ptable th{
+    background:var(--green-l);color:var(--green-d);text-align:left;
+    padding:10px 14px;font-size:17px;text-transform:uppercase;letter-spacing:.06em;
+    border-bottom:1px solid var(--line);white-space:nowrap;
+  }
+  .ptable td{
+    padding:12px 14px;border-bottom:1px solid var(--line);
+    color:var(--muted);vertical-align:top;font-size:20.5px;line-height:1.5;
+  }
+  .ptable tr:last-child td{border-bottom:0}
+  .ptable td:first-child{color:var(--ink);font-weight:600;white-space:nowrap;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:19px}
+  .ptable td.scope-dt2{color:var(--green);font-weight:600;white-space:nowrap}
+  .ptable td.scope-custom{color:var(--amber);font-weight:600;white-space:nowrap}
+
+  /* frontend param columns */
+  .param-col{border:1px solid var(--line);border-radius:6px;overflow:hidden}
+  .param-col-head{padding:12px 16px;font-family:Georgia,serif;font-weight:600;font-size:21px}
+  .param-col-head.dt2{background:var(--green-l);color:var(--green-d)}
+  .param-col-head.custom{background:#fdf3e3;color:var(--amber)}
+  :root[data-theme="dark"] .param-col-head.custom{background:#2e2010}
+  @media(prefers-color-scheme:dark){.param-col-head.custom{background:#2e2010}}
+  .param-col ul{list-style:none}
+  .param-col li{padding:11px 16px;border-top:1px solid var(--line);font-size:19.5px;color:var(--muted);background:var(--card)}
+  .param-col li strong{display:block;color:var(--ink);font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:17.5px;margin-bottom:2px}
+
+  /* keyboard hint */
+  .kbd-hint{position:fixed;bottom:16px;right:20px;font-size:13px;color:var(--muted);pointer-events:none}
+
+  /* print: compact type scale, one slide per physical page */
+  @media print {
+    body{height:auto;overflow:visible;font-size:15px}
+    .topbar,.progress-rail,.nav-btn,.slide-counter,.kbd-hint{display:none!important}
+    .deck{position:static;height:auto;overflow:visible}
+    .slide{
+      position:relative;inset:auto;opacity:1!important;pointer-events:auto;
+      transform:none!important;display:flex;justify-content:center;
+      height:100vh;overflow:hidden;
+      page-break-after:always;break-after:page;page-break-inside:avoid;
+      padding:26px 42px;
+    }
+
+    .eyebrow{font-size:12px;margin-bottom:8px}
+    h1.slide-title{font-size:38px;margin-bottom:8px}
+    h2.slide-title{font-size:25.5px;margin-bottom:10px}
+    .subtitle{font-size:15px}
+    .meta{font-size:11.5px;margin-top:10px}
+    .week-badge{font-size:12.5px;padding:3px 12px;margin-bottom:14px}
+    .title-rule{margin-bottom:16px}
+
+    .two-col{gap:20px}
+    .three-col{gap:14px}
+    .body-text{font-size:13.5px;line-height:1.4;margin-bottom:8px!important}
+    .blist,.steps,.flow{margin-top:4px}
+    .blist li{font-size:13px;padding:4px 0 4px 14px;line-height:1.35}
+    .blist li::before{top:9px}
+    .steps li{font-size:13px;padding:6px 0 6px 32px;line-height:1.35}
+    .steps li::before{width:20px;height:20px;font-size:10px;top:5px}
+    .flow li{font-size:12.5px;padding:5px 0;gap:8px}
+    .flow li .flow-tag{font-size:10px;padding:2px 5px;min-width:70px}
+
+    .card{padding:10px 14px}
+    .card h3{font-size:14.5px;margin-bottom:4px}
+    .card p{font-size:13px;line-height:1.35}
+    .card .stat{font-size:23.5px;margin-bottom:2px}
+    .card .stat-label{font-size:11.5px}
+    .stat-row{gap:10px;margin-top:10px}
+    .stat-box{padding:8px 12px}
+    .stat-box .n{font-size:23.5px}
+    .stat-box .l{font-size:11.5px}
+
+    .warn-box,.ok-box{font-size:13px;padding:8px 12px;margin-top:8px;line-height:1.35}
+
+    .ptable-wrap{overflow-x:visible}
+    .ptable th{font-size:11.5px;padding:5px 8px}
+    .ptable td{font-size:12.5px;padding:6px 8px;line-height:1.3}
+    .ptable td:first-child{font-size:12px}
+
+    .param-col-head{font-size:14px;padding:8px 12px}
+    .param-col li{font-size:12.5px;padding:7px 12px}
+    .param-col li strong{font-size:11.5px}
+
+    code{font-size:12px;padding:0 4px}
+    .tag{font-size:12px;padding:1px 8px}
+  }
+</style>
+
+<!-- Slide deck -->
+<div class="topbar">
+  <div class="topbar-left">
+    <span class="logo">CoRE Stack</span>
+    <span class="deck-title">Detectree2 — Model Overview</span>
+  </div>
+  <div class="topbar-right">
+    <button class="nav-btn" id="prevBtn" onclick="navigate(-1)" disabled>← Prev</button>
+    <span class="slide-counter" id="counter">1 / 9</span>
+    <button class="nav-btn" id="nextBtn" onclick="navigate(1)">Next →</button>
+  </div>
+</div>
+
+<div class="progress-rail"><div class="progress-fill" id="prog" style="width:11.1%"></div></div>
+
+<div class="deck" id="deck">
+
+  <!-- SLIDE 1: Title -->
+  <div class="slide title-slide active" id="s1">
+    <div class="week-badge">Model Overview</div>
+    <div class="title-rule"></div>
+    <h1 class="slide-title">Detectree2</h1>
+    <p class="subtitle">The tree-crown detection engine behind our pipeline — what it is, what it does, and where our own code takes over from it.</p>
+    <div class="meta">
+      <span><span class="dot"></span> Tree Crown Detection Pipeline · IIT Delhi CoRE Stack</span>
+    </div>
+  </div>
+
+  <!-- SLIDE 2: What is Detectree2 -->
+  <div class="slide" id="s2">
+    <div class="eyebrow">Overview</div>
+    <h2 class="slide-title">What Is Detectree2?</h2>
+    <div class="two-col">
+      <div>
+        <p class="body-text">Detectree2 is an open-source Python package for automatic <strong style="color:var(--ink)">tree crown delineation</strong> in aerial RGB and multispectral imagery, built on the <strong style="color:var(--ink)">Detectron2 implementation of Mask R-CNN</strong>. It was developed by James Ball and colleagues in the Forest Ecology and Conservation Group (led by Prof. David Coomes) at the University of Cambridge's Conservation Research Institute.</p>
+        <ul class="blist" style="margin-top:16px">
+          <li><strong>Why it exists:</strong> lidar-based canopy segmentation struggles to isolate individual trees where crowns overlap densely — common in tropical forests</li>
+          <li><strong>Its approach:</strong> treat crown delineation as an image instance-segmentation problem, not a lidar point-cloud problem</li>
+          <li><strong>License:</strong> MIT, distributed via PyPI (<code>pip install detectree2</code>)</li>
+          <li><strong>Citation:</strong> Ball et al. (2023), <em>Remote Sensing in Ecology and Conservation</em>, 9(5):641-655</li>
+        </ul>
+      </div>
+      <div>
+        <div class="stat-row" style="flex-direction:column;gap:14px">
+          <div class="card">
+            <div class="stat">Mask R-CNN</div>
+            <div class="stat-label">Architecture (via Detectron2)</div>
+          </div>
+          <div class="card">
+            <div class="stat">Cambridge</div>
+            <div class="stat-label">Origin — Forest Ecology &amp; Conservation Group</div>
+          </div>
+          <div class="card">
+            <div class="stat">0.57 vs 0.52</div>
+            <div class="stat-label">F1 score vs. DeepForest — independent validation, Japan (Gan et al. 2023)</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 3: What it does -->
+  <div class="slide" id="s3">
+    <div class="eyebrow">Core Function</div>
+    <h2 class="slide-title">What It Actually Does</h2>
+    <div class="two-col">
+      <div>
+        <p class="body-text">Given an orthomosaic, detectree2 outputs a <strong style="color:var(--ink)">polygon outline for every individual tree crown</strong> it finds — not just a bounding box. Each polygon carries a confidence score, and because it's <em>instance</em> segmentation, it can tell two touching or overlapping crowns apart as separate trees.</p>
+        <ul class="blist" style="margin-top:16px">
+          <li><strong>Input:</strong> a georeferenced RGB (or multispectral) orthomosaic — a GeoTIFF</li>
+          <li><strong>Output:</strong> crown polygons (GeoJSON/shapefile), each with a confidence score, ready to overlay in QGIS</li>
+          <li><strong>Unit of detection:</strong> one polygon = one tree, shape included — not just "tree present here"</li>
+          <li><strong>Extendable:</strong> designed for single-class (tree) delineation, but can be trained multi-class — opening the door to low-cost species mapping</li>
+        </ul>
+      </div>
+      <div>
+        <div class="card" style="margin-bottom:14px">
+          <h3>Detection vs. Delineation</h3>
+          <p>A plain object detector would draw a box around each tree. Detectree2 draws the actual crown <em>shape</em> — critical for canopy-area measurement, not just counting.</p>
+        </div>
+        <div class="card">
+          <h3>Why Mask R-CNN</h3>
+          <p>Mask R-CNN extends a standard detector with a per-instance segmentation mask branch — exactly the "shape, not just box" capability crown delineation needs.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 4: Where it's used -->
+  <div class="slide" id="s4">
+    <div class="eyebrow">Applications</div>
+    <h2 class="slide-title">Where It's Used</h2>
+    <div class="two-col">
+      <div>
+        <p class="body-text">Originally built for tropical forest monitoring, detectree2 is now used across a range of ecological and conservation applications, and has been independently validated well beyond its original tropical setting.</p>
+        <ul class="blist" style="margin-top:16px">
+          <li><strong>Tropical forest monitoring:</strong> tracking individual tree growth and mortality over time</li>
+          <li><strong>Conservation research:</strong> canopy structure and biodiversity mapping</li>
+          <li><strong>Carbon / ecological studies:</strong> crown-area-based biomass estimation</li>
+          <li><strong>Beyond the tropics:</strong> independently validated on a temperate deciduous forest in Japan, outperforming DeepForest (Gan et al. 2023)</li>
+        </ul>
+      </div>
+      <div>
+        <div class="card">
+          <h3>In This Project</h3>
+          <p>Detectree2 is <strong style="color:var(--ink)">Step 0</strong> of our Tree-Crown Species Pipeline — it finds and outlines every crown in a drone orthomosaic. Everything after that (species clustering) is <strong style="color:var(--ink)">our own code</strong>, layered on top of its output.</p>
+        </div>
+        <div class="ok-box">
+          drone orthomosaic → <strong>Detectree2 detects crowns</strong> → DINOv2 embeds each crown → KMeans clusters by visual similarity → human labels species
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 5: Standard workflow -->
+  <div class="slide" id="s5">
+    <div class="eyebrow">Methodology</div>
+    <h2 class="slide-title">The Standard Detectree2 Workflow</h2>
+    <div class="two-col">
+      <div>
+        <p class="body-text">Per detectree2's own documentation, the intended end-to-end workflow has four stages — training a model is part of the standard process, not optional:</p>
+        <ol class="steps">
+          <li><strong>Tile</strong> the orthomosaic and reference crown data, for training/validation/testing</li>
+          <li><strong>Train</strong> (and tune) a Mask R-CNN model on the training tiles</li>
+          <li><strong>Evaluate</strong> performance on held-out test tiles against manually-drawn crowns</li>
+          <li><strong>Predict</strong> crowns over the full region of interest with the trained model</li>
+        </ol>
+      </div>
+      <div>
+        <div class="warn-box">
+          <strong style="color:inherit">Our project only runs step 4.</strong> We use detectree2's pre-trained weights (from its <code>model_garden</code>, plus our own fine-tuned <code>.pth</code> files) and go straight to prediction — no training or evaluation happens inside this codebase.
+        </div>
+        <div class="card" style="margin-top:16px">
+          <h3>Why that's fine</h3>
+          <p>Pre-trained models already generalise reasonably well to new areas; detectree2's own docs note it can be fine-tuned to a new region with as few as ~10 manually-annotated images if needed.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 6: How it runs in our pipeline -->
+  <div class="slide" id="s6">
+    <div class="eyebrow">Our Implementation</div>
+    <h2 class="slide-title">How It Runs in <code>predict.py</code></h2>
+    <p class="body-text" style="margin-bottom:10px">Every step below runs inside <code>run_detectree2_pipeline()</code> — tagged by whether the step is detectree2's own code, or ours layered around it.</p>
+    <ul class="flow">
+      <li><span class="flow-tag custom">CUSTOM</span> <span><strong>Downsample</strong> the ortho to a consistent effective resolution (GSD-adaptive, this week's fix)</span></li>
+      <li><span class="flow-tag dt2">DETECTREE2</span> <span><strong>Tile</strong> the ortho into overlapping tiles — <code>tile_data()</code></span></li>
+      <li><span class="flow-tag dt2">DETECTREE2</span> <span><strong>Load weights</strong> into a Mask R-CNN predictor — <code>setup_cfg()</code> + <code>DefaultPredictor</code></span></li>
+      <li><span class="flow-tag dt2">DETECTREE2</span> <span><strong>Run inference</strong> per tile — <code>predict_on_data()</code></span></li>
+      <li><span class="flow-tag dt2">DETECTREE2</span> <span><strong>Convert</strong> pixel-space masks to geo-referenced polygons — <code>project_to_geojson()</code></span></li>
+      <li><span class="flow-tag dt2">DETECTREE2</span> <span><strong>Stitch</strong> crowns back together across tile boundaries — <code>stitch_crowns()</code></span></li>
+      <li><span class="flow-tag dt2">DETECTREE2</span> <span><strong>Clean</strong> duplicates via IoU + confidence filtering — <code>clean_crowns()</code></span></li>
+      <li><span class="flow-tag custom">CUSTOM</span> <span><strong>Filter</strong> by crown area (4-200 m²) and <strong>simplify</strong> polygon vertices (0.6m tolerance)</span></li>
+    </ul>
+  </div>
+
+  <!-- SLIDE 7: Detectree2 parameters -->
+  <div class="slide" id="s7">
+    <div class="eyebrow">Parameter Reference</div>
+    <h2 class="slide-title">Detectree2's Own Parameters</h2>
+    <p class="body-text" style="margin-bottom:14px">These map directly onto detectree2/Detectron2 function arguments — they control the model itself, not anything downstream.</p>
+    <div class="ptable-wrap">
+      <table class="ptable">
+        <thead>
+          <tr><th>Parameter</th><th>Default</th><th>Detectree2 API</th><th>What it controls</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Detector model</td><td>urban_cambridge</td>
+            <td><code>setup_cfg(update_model=...)</code></td>
+            <td>Which trained Mask R-CNN weights (<code>.pth</code>) to load</td>
+          </tr>
+          <tr>
+            <td>tile_size</td><td>10 m</td>
+            <td><code>tile_data(tile_width, tile_height)</code></td>
+            <td>Size of the tiles the model runs inference on</td>
+          </tr>
+          <tr>
+            <td>buffer</td><td>10 m</td>
+            <td><code>tile_data(buffer)</code></td>
+            <td>Overlap between tiles so edge crowns aren't cut off</td>
+          </tr>
+          <tr>
+            <td>conf_threshold</td><td>0.85</td>
+            <td><code>cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST</code></td>
+            <td>Minimum confidence a detection needs to survive</td>
+          </tr>
+          <tr>
+            <td>iou_threshold</td><td>0.9</td>
+            <td><code>clean_crowns(iou_threshold)</code></td>
+            <td>Overlap cutoff used to merge/drop duplicate crowns</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- SLIDE 8: Frontend — detectree2 vs not -->
+  <div class="slide" id="s8">
+    <div class="eyebrow">Frontend Parameters</div>
+    <h2 class="slide-title">In Our UI: Detectree2 vs. Not</h2>
+    <p class="body-text" style="margin-bottom:14px">The Step-3 parameter form is grouped by pipeline stage — only the first group is actually detectree2.</p>
+    <div class="two-col">
+      <div class="param-col">
+        <div class="param-col-head dt2">Detectree2 — "Detection" group</div>
+        <ul>
+          <li><strong>modelKey</strong> Detector model dropdown — which crown-detection weights to use</li>
+          <li><strong>p_tile</strong> tile_size (m) — default 10</li>
+          <li><strong>p_buf</strong> buffer (m) — default 10</li>
+          <li><strong>p_iou</strong> iou_threshold — default 0.9</li>
+          <li><strong>p_conf</strong> conf_threshold — default 0.85</li>
+        </ul>
+      </div>
+      <div class="param-col">
+        <div class="param-col-head custom">NOT Detectree2 — later stages</div>
+        <ul>
+          <li><strong>backbone</strong> DINOv2 feature extractor — "Crown embedding" group, a separate model entirely</li>
+          <li><strong>p_pca</strong> pca_components — "Clustering" group (default 50)</li>
+          <li><strong>klist</strong> k_list — candidate K-Means cluster counts (default 2,4,6,8,10)</li>
+          <li><strong>p_epsg</strong> CRS fallback — georeferencing utility, not a model parameter at all</li>
+        </ul>
+      </div>
+    </div>
+    <div class="warn-box">
+      <strong style="color:inherit">Deliberately hidden from the UI entirely:</strong> <code>batch_size</code> (VRAM-bound, fixed at 64) and <code>img_size</code> (fixed by whichever DINOv2 backbone is chosen — sent automatically, never a free field). Neither is a detectree2 parameter either — both belong to the DINOv2 embedding step.
+    </div>
+  </div>
+
+  <!-- SLIDE 9: Summary -->
+  <div class="slide" id="s9">
+    <div class="eyebrow">Summary</div>
+    <h2 class="slide-title">Key Takeaways</h2>
+    <ul class="blist">
+      <li><strong>Detectree2 is a crown-finding engine, nothing more.</strong> It answers "where are the trees and what shape are their crowns" — that's its entire job.</li>
+      <li><strong>It's Mask R-CNN under the hood</strong> (via Detectron2), from Cambridge's Forest Ecology and Conservation Group, peer-reviewed and independently validated beyond its original tropical setting.</li>
+      <li><strong>Our pipeline only uses its "predict" stage</strong> — pre-trained weights, no training/evaluation happening in this codebase.</li>
+      <li><strong>Species identification is entirely ours, not detectree2's.</strong> DINOv2 feature embedding, PCA, and K-Means clustering are separate stages we built on top of detectree2's crown output.</li>
+      <li><strong>In the frontend, only 5 fields are truly detectree2</strong> — model choice, tile_size, buffer, iou_threshold, conf_threshold. Everything else in the parameter form belongs to a later, unrelated stage.</li>
+    </ul>
+    <div class="ok-box" style="margin-top:20px">
+      This distinction matters for debugging: if crown <em>detection</em> looks wrong, the fix is in detectree2's parameters or weights. If species <em>clustering</em> looks wrong, detectree2 isn't the place to look — that's DINOv2/PCA/K-Means territory.
+    </div>
+  </div>
+
+</div>
+
+<span class="kbd-hint">← → arrow keys to navigate</span>
+
+<script>
+  const TOTAL = 9;
+  let cur = 1;
+
+  function navigate(dir){
+    const next = cur + dir;
+    if(next < 1 || next > TOTAL) return;
+    const prev = document.getElementById('s' + cur);
+    prev.classList.remove('active');
+    if(dir > 0) prev.classList.add('exit-left');
+    setTimeout(()=>{ prev.classList.remove('exit-left'); prev.style.transform='translateX(32px)'; prev.style.opacity='0'; setTimeout(()=>{prev.style.transform='';prev.style.opacity='';},10); }, 250);
+    cur = next;
+    const el = document.getElementById('s' + cur);
+    el.style.transform = dir > 0 ? 'translateX(32px)' : 'translateX(-32px)';
+    el.style.opacity = '0';
+    requestAnimationFrame(()=>{ requestAnimationFrame(()=>{ el.classList.add('active'); el.style.transform=''; el.style.opacity=''; }); });
+    document.getElementById('counter').textContent = cur + ' / ' + TOTAL;
+    document.getElementById('prog').style.width = (cur/TOTAL*100) + '%';
+    document.getElementById('prevBtn').disabled = cur === 1;
+    document.getElementById('nextBtn').disabled = cur === TOTAL;
+  }
+
+  document.addEventListener('keydown', e=>{
+    if(e.key === 'ArrowRight' || e.key === 'ArrowDown') navigate(1);
+    if(e.key === 'ArrowLeft'  || e.key === 'ArrowUp')   navigate(-1);
+  });
+</script>

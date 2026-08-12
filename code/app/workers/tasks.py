@@ -59,13 +59,33 @@ class _Tee:
                 pass
 
 
-def _get_predictor(model_path: str, conf_threshold: float):
+def _get_predictor(
+    model_path: str,
+    conf_threshold: float,
+    detections_per_image: int = 6,
+    min_size_test: int = 512,
+):
+    """Return a cached DefaultPredictor.
+
+    Every argument here is baked into the predictor at construction time, so
+    every argument must appear in the cache key. Leaving one out would make
+    two projects with different values silently share whichever predictor was
+    built first — wrong results, no error, nothing in the logs.
+    """
     import predict  # lazy
 
-    key = (model_path, round(float(conf_threshold), 4))
+    key = (
+        model_path,
+        round(float(conf_threshold), 4),
+        int(detections_per_image),
+        int(min_size_test),
+    )
     if key not in _PREDICTORS:
         _PREDICTORS[key] = predict.build_predictor(
-            model_path, conf_threshold=conf_threshold
+            model_path,
+            conf_threshold=conf_threshold,
+            detections_per_image=detections_per_image,
+            min_size_test=min_size_test,
         )
     return _PREDICTORS[key]
 
@@ -165,7 +185,12 @@ def job_a_analyze(self, project_id: str, job_id: str):
             if not stems:
                 raise RuntimeError("No orthomosaics uploaded.")
 
-            predictor = _get_predictor(cfg.DETECTREE_MODEL, cfg.CONF_THRESHOLD)
+            predictor = _get_predictor(
+                cfg.DETECTREE_MODEL,
+                cfg.CONF_THRESHOLD,
+                detections_per_image=cfg.DETECTIONS_PER_IMAGE,
+                min_size_test=cfg.MIN_SIZE_TEST,
+            )
             for stem in stems:
                 src_ortho = _find_ortho(ortho_dir, stem)
                 det_out = os.path.join(paths["detectree"], stem)
@@ -177,6 +202,9 @@ def job_a_analyze(self, project_id: str, job_id: str):
                     buffer=cfg.BUFFER,
                     iou_threshold=cfg.IOU_THRESHOLD,
                     conf_threshold=cfg.CONF_THRESHOLD,
+                    area_min=cfg.AREA_MIN,
+                    area_max=cfg.AREA_MAX,
+                    full_coverage=cfg.FULL_COVERAGE,
                 )
                 # feed Step 1: same-resolution ortho + per-ortho-prefixed polygons
                 shutil.copy(used, os.path.join(paths["ortho"], f"{stem}.tif"))

@@ -196,6 +196,10 @@ def update_project(
     # 400 instead of deep in the worker with 500 (v4 section 8.3).
     if body.params:
         _validate_param_overrides(body.params)
+        # Cross-field rules must be checked against the merged result, or an
+        # invalid pair (e.g. area_min > stored area_max) would be persisted here
+        # and only surface later at analyze time.
+        _validate_merged_params(project, body.params)
 
     # Merge param overrides onto the existing params, then validate model choices.
     new_params = dict(project.params or {})
@@ -451,18 +455,64 @@ def _register_ortho(project, db: Session, dst: str, stem: str):
 
 
 def _validate_param_overrides(overrides: dict) -> None:
-    """Validate provided pipeline-param overrides against their declared types so
-    a bad value fails fast with 400 (v4 section 8.3). Unknown keys are left untouched."""
+    """Validate provided pipeline-param overrides against their declared types
+    AND their declared bounds, so a bad value fails fast with 400 (v4 section
+    8.3). Unknown keys are left untouched.
+
+    ``fields[key].annotation`` is the bare type — pydantic keeps ge/le/gt/lt on
+    the FieldInfo, not the annotation, so validating the annotation alone
+    silently ignores every bound. Re-attaching the FieldInfo via Annotated is
+    what makes the constraints in PipelineParams actually enforce.
+
+    This checks one key at a time and therefore cannot see cross-field rules
+    such as area_min < area_max; those live in PipelineParams' model_validator
+    and are applied to the merged params by _validate_trigger_body (runs.py).
+    """
+    from typing import Annotated
+
     from pydantic import TypeAdapter
+
     from app.schemas.project import PipelineParams
     fields = PipelineParams.model_fields
     for key, val in (overrides or {}).items():
         if key in fields:
             try:
-                TypeAdapter(fields[key].annotation).validate_python(val)
+                TypeAdapter(
+                    Annotated[fields[key].annotation, fields[key]]
+                ).validate_python(val)
             except Exception as e:
                 raise HTTPException(400, {"code": "BAD_REQUEST",
                     "message": f"Invalid value for param '{key}': {e}"})
+
+
+def _validate_merged_params(project, overrides: dict) -> None:
+    """Apply PipelineParams' cross-field rules to the params as they will be
+    STORED, not just to the incoming overrides.
+
+    Both the project-update path and the analyze trigger merge overrides onto
+    the project's existing params, so per-key validation is not enough: sending
+    only ``area_min: 5000`` passes every individual bound while still producing
+    an invalid pair against a stored ``area_max`` of 2000. Called from both
+    write paths so a bad combination can never be persisted.
+
+    Unknown keys are dropped before validating, so legacy or operator-only
+    params already on the project cannot break the check.
+    """
+    from pydantic import ValidationError
+
+    from app.schemas.project import PipelineParams
+
+    merged = {**(getattr(project, "params", None) or {}), **(overrides or {})}
+    known = {k: v for k, v in merged.items() if k in PipelineParams.model_fields}
+    try:
+        PipelineParams(**known)
+    except ValidationError as e:
+        first = e.errors()[0]
+        raise HTTPException(400, {
+            "code": "BAD_REQUEST",
+            "message": first.get("msg", str(e)),
+            "project_id": project.id,
+        })
 
 
 def _stream_to_disk(
