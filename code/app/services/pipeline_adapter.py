@@ -75,14 +75,22 @@ def build_config(project) -> types.SimpleNamespace:
     return cfg
 
 
-def write_species_map_csv(project, chosen_k: int, mapping: dict[int, dict]) -> str:
+def write_species_map_csv(
+    project, chosen_k: int, mapping: dict[int, dict], run: int | None = None
+) -> str:
     """Write the ``k{chosen_k}_cluster_species_map.csv`` that step2 reads.
 
     ``mapping`` maps cluster_id -> {"species": str, "notes": str}.
     Clusters missing from the mapping are written as 'unlabelled'.
+
+    ``run`` pins the target run folder. Callers that already read
+    ``current_run`` should pass it, so a concurrent re-analyze bumping the
+    counter mid-request cannot redirect this file into the new run's folder.
     """
+    if run is None:
+        run = getattr(project, "current_run", 1) or 1
     clustering_dir = os.path.join(
-        project_paths(project.id, getattr(project, "current_run", 1) or 1)["step1_output"],
+        project_paths(project.id, run)["step1_output"],
         "clustering",
     )
     os.makedirs(clustering_dir, exist_ok=True)

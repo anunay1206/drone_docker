@@ -9,8 +9,6 @@ dag_run_id). A repeat call with a key whose run already SUCCEEDED replays the
 result without recomputing; a key whose run is still in flight returns 409
 CONFLICT_BUSY.
 """
-from datetime import datetime
-
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from sqlalchemy.orm import Session
 
@@ -22,12 +20,13 @@ from app.api.v1.runs import (
     _current_request_id,
     _validate_trigger_body,
 )
-from app.core.logging import ERROR_CODES, get_logger, naive_now
-from app.db import models
+from app.core.logging import ERROR_CODES, get_logger
 from app.db.session import get_db
 from app.schemas.project import AnalyzeTrigger
+from app.services import job_claim
 from app.services.airflow_client import airflow_enabled, get_dag_run_state, trigger_drone_dag
 from app.services.assets import analyze_asset_fields
+from app.services.state import transition_if
 from app.workers.tasks import job_a_analyze
 
 router = APIRouter()
@@ -189,23 +188,12 @@ def run_analyze(
         project = resolve_project(db, user, body.project_id)
 
     _validate_trigger_body(project, body)
-    # Idempotent replay / in-flight guard.
-    if idempotency_key:
-        prior = (
-            db.query(models.Job)
-            .filter_by(project_id=project.id, celery_task_id=idempotency_key)
-            .order_by(models.Job.started_at.desc())
-            .first()
-        )
-        if prior and prior.state == "SUCCEEDED":
-            db.refresh(project)
-            return _analyze_payload(request, project)
-        if prior and prior.state in ("QUEUED", "RUNNING"):
-            raise HTTPException(409, {
-                "code": "CONFLICT_BUSY",
-                "message": "A run with this Idempotency-Key is already in progress",
-                "project_id": project.id,
-            })
+    # Idempotent replay: a key whose run already SUCCEEDED replays the payload.
+    key = job_claim.compute_key(idempotency_key)
+    prior = job_claim.find_prior(db, project, key)
+    if prior and prior.state == "SUCCEEDED":
+        db.refresh(project)
+        return _analyze_payload(request, project)
 
     if project.state not in _ANALYZE_OK:
         raise HTTPException(409, {
@@ -220,25 +208,36 @@ def run_analyze(
             "project_id": project.id,
         })
 
+    # Claim before touching state or the run folder. This endpoint computes
+    # inline and _apply_run_config can archive the run and bump current_run, so
+    # two concurrent callers would corrupt each other's run; the state check
+    # above cannot exclude them (ANALYZING is a valid source state here by
+    # design, for hand-off from the trigger). See services/job_claim.py.
     previous_state = project.state
+    job, outcome = job_claim.claim(
+        db, project, key, "analyze", request_id=_current_request_id()
+    )
+    if outcome == job_claim.REPLAY:
+        db.refresh(project)
+        return _analyze_payload(request, project)
+    if job is None:
+        raise HTTPException(409, {
+            "code": "CONFLICT_BUSY",
+            "message": (
+                "A run with this Idempotency-Key is already in progress"
+                if outcome == job_claim.DUPLICATE
+                else "Another job is already in progress for this project"
+            ),
+            "project_id": project.id,
+            "hint": "wait for the current run to finish",
+        })
+
     project.state = "ANALYZING"
+    project.error = None
     db.add(project)
     db.commit()
     db.refresh(project)
     _apply_run_config(db, project, body, previous_state)
-
-    job = models.Job(
-        project_id=project.id, type="analyze", state="RUNNING",
-        started_at=naive_now(), celery_task_id=idempotency_key,
-        request_id=_current_request_id(),
-    )
-    db.add(job)
-    db.commit()
-    db.refresh(job)
-
-    project.error = None
-    db.add(project)
-    db.commit()
 
     try:
         job_a_analyze.apply(args=[project.id, job.id]).get(propagate=True)
@@ -248,13 +247,13 @@ def run_analyze(
         db.refresh(job)
         stage = job.current_stage or "unknown"
         log.error("analyze failed project=%s job=%s stage=%s", project.id, job.id, stage, exc_info=True)
-        if project.state == "ANALYZING":
-            project.state = previous_state
-            db.add(project)
-            db.commit()
+        # Read the failure text before rolling back — transition_if clears it.
+        message = project.error or str(exc)
+        # Conditional roll-back: only undo the state this call claimed.
+        transition_if(db, project, {"ANALYZING"}, previous_state)
         raise HTTPException(500, {
             "code": "COMPUTE_FAILED",
-            "message": project.error or str(exc),
+            "message": message,
             "project_id": project.id,
             "stage": stage,
             "hint": "see the run's logs/ folder or errors.jsonl by request_id",

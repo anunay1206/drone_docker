@@ -14,6 +14,7 @@ import csv
 import os
 import shutil
 import sys
+import threading
 import traceback
 from datetime import datetime
 
@@ -36,27 +37,89 @@ log = get_logger("app.pipeline")
 # ── warm model caches (one per worker process) ─────────────────────────
 _PREDICTORS: dict = {}
 _DINOV2: dict = {}
+# Building a predictor / DINOv2 allocates GPU memory, so the cache MISS path has
+# to be serialised: without this, two concurrent jobs that miss the same key both
+# build the model and the second allocation can OOM the device.
+_MODEL_LOCK = threading.Lock()
 
 
-class _Tee:
-    """Write a stream to several sinks (console + per-job log file)."""
+class _ThreadRoutedStream:
+    """Process-global stdout/stderr proxy that routes writes per thread.
 
-    def __init__(self, *streams):
-        self.streams = streams
+    Jobs run concurrently *in this process* — local dispatch uses a daemon
+    thread, and ``/compute/*`` calls ``.apply()`` inside the request threadpool.
+    ``contextlib.redirect_stdout`` cannot be used for per-job log capture there:
+    it swaps the process-global ``sys.stdout``, so overlapping jobs interleave
+    into each other's log, and unwinding out of order restores a *closed* file
+    that silently swallows every later write in the process.
 
+    This proxy is installed once and never removed. Each write goes to the real
+    stream plus whatever sink the *calling thread* has registered, so two jobs
+    capture cleanly side by side and a finished job's closed file is simply
+    dropped from its own thread's state.
+    """
+
+    def __init__(self, real):
+        self._real = real
+        self._local = threading.local()
+
+    # -- per-thread sink registration --
+    def push(self, sink):
+        prev = getattr(self._local, "sink", None)
+        self._local.sink = sink
+        return prev
+
+    def pop(self, prev):
+        self._local.sink = prev
+
+    # -- file-like surface --
     def write(self, data):
-        for s in self.streams:
+        try:
+            self._real.write(data)
+        except Exception:
+            pass
+        sink = getattr(self._local, "sink", None)
+        if sink is not None:
             try:
-                s.write(data)
+                sink.write(data)
             except Exception:
                 pass
 
     def flush(self):
-        for s in self.streams:
+        for s in (self._real, getattr(self._local, "sink", None)):
+            if s is None:
+                continue
             try:
                 s.flush()
             except Exception:
                 pass
+
+    def isatty(self):
+        return False
+
+    def fileno(self):
+        return self._real.fileno()
+
+
+_STREAM_LOCK = threading.Lock()
+_PROXIES: dict = {}
+
+
+def _proxy(name: str) -> _ThreadRoutedStream:
+    """Install (once) and return the routed proxy for 'stdout' / 'stderr'.
+
+    Installed lazily so importing this module never touches the process
+    streams. The logging handlers hold a direct reference to the original
+    ``sys.stdout`` object (bound in ``configure_logging``), so container log
+    collection is unaffected by the swap.
+    """
+    with _STREAM_LOCK:
+        proxy = _PROXIES.get(name)
+        if proxy is None:
+            proxy = _ThreadRoutedStream(getattr(sys, name))
+            _PROXIES[name] = proxy
+            setattr(sys, name, proxy)
+        return proxy
 
 
 def _get_predictor(
@@ -80,23 +143,32 @@ def _get_predictor(
         int(detections_per_image),
         int(min_size_test),
     )
-    if key not in _PREDICTORS:
-        _PREDICTORS[key] = predict.build_predictor(
-            model_path,
-            conf_threshold=conf_threshold,
-            detections_per_image=detections_per_image,
-            min_size_test=min_size_test,
-        )
-    return _PREDICTORS[key]
+    hit = _PREDICTORS.get(key)
+    if hit is not None:
+        return hit
+    with _MODEL_LOCK:
+        # Re-check: another thread may have built it while we waited.
+        if key not in _PREDICTORS:
+            _PREDICTORS[key] = predict.build_predictor(
+                model_path,
+                conf_threshold=conf_threshold,
+                detections_per_image=detections_per_image,
+                min_size_test=min_size_test,
+            )
+        return _PREDICTORS[key]
 
 
 def _get_dinov2(model_name: str, img_size: int):
     import tree_crown_pipeline as tcp  # lazy
 
     key = (model_name, img_size)
-    if key not in _DINOV2:
-        _DINOV2[key] = tcp.build_dinov2(model_name, img_size)
-    return _DINOV2[key]
+    hit = _DINOV2.get(key)
+    if hit is not None:
+        return hit
+    with _MODEL_LOCK:
+        if key not in _DINOV2:
+            _DINOV2[key] = tcp.build_dinov2(model_name, img_size)
+        return _DINOV2[key]
 
 
 def _set_job(db, job, **fields):
@@ -322,12 +394,25 @@ def job_b_finalize(self, project_id: str, job_id: str):
 
 # ── helpers ────────────────────────────────────────────────────────────
 def _redirect(logf):
-    from contextlib import redirect_stderr, redirect_stdout, ExitStack
+    """Capture this thread's stdout/stderr into ``logf`` for the duration.
 
-    stack = ExitStack()
-    stack.enter_context(redirect_stdout(_Tee(sys.__stdout__, logf)))
-    stack.enter_context(redirect_stderr(_Tee(sys.__stderr__, logf)))
-    return stack
+    Thread-scoped, not process-scoped — see ``_ThreadRoutedStream``. Restores
+    whatever sink the thread had before, so nesting is safe and a concurrent
+    job's capture is never disturbed.
+    """
+    from contextlib import contextmanager
+
+    @contextmanager
+    def _capture():
+        out, err = _proxy("stdout"), _proxy("stderr")
+        prev_out, prev_err = out.push(logf), err.push(logf)
+        try:
+            yield
+        finally:
+            out.pop(prev_out)
+            err.pop(prev_err)
+
+    return _capture()
 
 
 def _find_ortho(ortho_dir: str, stem: str) -> str:

@@ -16,6 +16,14 @@ Idempotency: pass a stable ``Idempotency-Key`` header (the DAG's dag_run_id). A
 repeat whose key already SUCCEEDED replays a 200 without recomputing. The key is
 namespaced (``compute:<id>``) so it never collides with the trigger's placeholder
 job (which stores the raw dag_run_id on its celery_task_id).
+
+Concurrency: two callbacks must never compute the same project at once — they
+share one ``work/run_<n>`` directory and each starts by wiping it. The claim is
+made on the Job row (``_claim``), not on the project state, because the trigger
+has already moved the project into ANALYZING/FINALIZING before the DAG fires and
+a conditional UPDATE onto the state it is already in cannot exclude anyone. A
+callback that loses the claim gets **400**, which the DAG turns into a graceful
+skip; no 409 is emitted from this module.
 """
 import os
 
@@ -24,11 +32,12 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
 from app.api.deps import require_service_token
-from app.core.logging import get_logger, naive_now, request_id_var
+from app.core.logging import get_logger, request_id_var
 from app.core.storage import project_paths
 from app.db import models
 from app.db.session import get_db
 from app.schemas.compute import ComputeRequest
+from app.services import job_claim
 from app.services.assets import asset_response_fields
 from app.workers.tasks import job_a_analyze, job_b_finalize
 
@@ -72,14 +81,33 @@ def _err(
     return JSONResponse(status_code=http_code, content=content)
 
 
-def _prior_job(db: Session, project, key: str | None):
-    if not key:
-        return None
-    return (
-        db.query(models.Job)
-        .filter_by(project_id=project.id, celery_task_id=key)
-        .order_by(models.Job.started_at.desc())
-        .first()
+def _claim(db: Session, project, key: str, job_type: str):
+    """Claim the run for this callback. Returns ``(job, rejection_response)``.
+
+    Exactly one of the two is non-None, except for the replay case — a same-key
+    callback that finished while we were inserting — which returns
+    ``(None, None)`` and leaves the caller to return its success payload.
+
+    See services/job_claim.py for why the exclusion lives on the Job row rather
+    than on the project state. Losers get 400, which the DAGs map to
+    AirflowSkipException: a graceful skip is the honest outcome, because the
+    winner is producing the asset.
+    """
+    job, outcome = job_claim.claim(
+        db, project, key, job_type, request_id=_current_request_id()
+    )
+    if outcome == job_claim.WON:
+        return job, None
+    if outcome == job_claim.REPLAY:
+        return None, None
+    if outcome == job_claim.ACTIVE:
+        return None, _err(
+            400, "INVALID_STATE",
+            "Another job is already in progress for this project", project.id,
+        )
+    return None, _err(
+        400, "INVALID_STATE",
+        "A run with this Idempotency-Key is already in progress", project.id,
     )
 
 
@@ -121,24 +149,23 @@ def compute_analyze(
     if not project:
         return _err(404, "NOT_FOUND", f"Project {req.project_id} not found", req.project_id)
 
-    key = f"compute:{idempotency_key or req.execution_id}"
-    prior = _prior_job(db, project, key)
+    key = job_claim.compute_key(idempotency_key or req.execution_id)
+    prior = job_claim.find_prior(db, project, key)
     if prior and prior.state == "SUCCEEDED":
         return _ok(project, _analyze_asset_id(project), project.current_run or 1, stage="analyze")
-    if prior and prior.state in ("QUEUED", "RUNNING"):
-        return _err(409, "CONFLICT_BUSY",
-                    "A run with this Idempotency-Key is already in progress", project.id)
 
     if project.state not in _ANALYZE_OK:
         return _err(400, "INVALID_STATE", f"Cannot analyze from state {project.state}", project.id)
     if not project.orthos:
         return _err(400, "NO_INPUT", "No orthomosaic uploaded for this project", project.id)
 
-    from datetime import datetime
-    job = models.Job(project_id=project.id, type="analyze", state="RUNNING",
-                     started_at=naive_now(), celery_task_id=key,
-                     request_id=_current_request_id())
-    db.add(job); db.commit(); db.refresh(job)
+    job, rejection = _claim(db, project, key, "analyze")
+    if job is None:
+        if rejection is not None:
+            return rejection
+        # Same-key callback that finished while we were inserting — replay it.
+        return _ok(project, _analyze_asset_id(project), project.current_run or 1, stage="analyze")
+    # Recording the state, not guarding with it — _claim already won the race.
     project.state = "ANALYZING"; project.error = None
     db.add(project); db.commit()
 
@@ -168,13 +195,10 @@ def compute_finalize(
     if not project:
         return _err(404, "NOT_FOUND", f"Project {req.project_id} not found", req.project_id)
 
-    key = f"compute:{idempotency_key or req.execution_id}"
-    prior = _prior_job(db, project, key)
+    key = job_claim.compute_key(idempotency_key or req.execution_id)
+    prior = job_claim.find_prior(db, project, key)
     if prior and prior.state == "SUCCEEDED":
         return _ok(project, _finalize_asset_id(project), project.current_run or 1, stage="finalize")
-    if prior and prior.state in ("QUEUED", "RUNNING"):
-        return _err(409, "CONFLICT_BUSY",
-                    "A run with this Idempotency-Key is already in progress", project.id)
 
     if project.state not in _FINALIZE_OK:
         return _err(400, "INVALID_STATE", f"Cannot finalize from state {project.state}", project.id)
@@ -182,11 +206,12 @@ def compute_finalize(
     if n_labels == 0:
         return _err(400, "NO_LABELS", "No labels submitted for this project", project.id)
 
-    from datetime import datetime
-    job = models.Job(project_id=project.id, type="finalize", state="RUNNING",
-                     started_at=naive_now(), celery_task_id=key,
-                     request_id=_current_request_id())
-    db.add(job); db.commit(); db.refresh(job)
+    job, rejection = _claim(db, project, key, "finalize")
+    if job is None:
+        if rejection is not None:
+            return rejection
+        return _ok(project, _finalize_asset_id(project), project.current_run or 1, stage="finalize")
+    # Recording the state, not guarding with it — _claim already won the race.
     project.state = "FINALIZING"; project.error = None
     db.add(project); db.commit()
 

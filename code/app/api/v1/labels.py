@@ -12,6 +12,7 @@ from app.api.deps import get_project
 from app.db import models
 from app.db.session import get_db
 from app.services.pipeline_adapter import normalize_species, write_species_map_csv
+from app.services.state import transition_if
 
 router = APIRouter()
 
@@ -75,6 +76,10 @@ def submit_labels(
     if not mapping:
         raise HTTPException(400, "Labels CSV had no usable rows for chosen_k")
 
+    # Pin the run these labels belong to before doing anything: a concurrent
+    # analyze trigger archives the current run and bumps the counter.
+    run = project.current_run or 1
+
     # Replace any previous mapping for this project.
     db.query(models.ClusterLabel).filter_by(project_id=project.id).delete()
     for cid, m in mapping.items():
@@ -96,11 +101,29 @@ def submit_labels(
     db.commit()
 
     # write the canonical CSV the pipeline's step2 reads
-    write_species_map_csv(project, chosen_k, mapping)
+    write_species_map_csv(project, chosen_k, mapping, run=run)
 
-    project.state = "LABELS_SUBMITTED"
-    db.add(project)
-    db.commit()
+    # Claim the state atomically. The check at the top of this handler is a
+    # fast-fail for a good error message, not a guard: parsing, the label
+    # rewrite and the CSV write all sit between it and here, and a re-analyze
+    # trigger can win that window. A plain assignment would then stamp
+    # LABELS_SUBMITTED over ANALYZING, dropping the busy guard and letting a
+    # finalize start against a run whose step-1 outputs are being rewritten.
+    if not transition_if(db, project, _LABEL_STATES, "LABELS_SUBMITTED"):
+        # Lost the race — drop the rows we just wrote so a freshly-opened run
+        # doesn't inherit labels from the clustering it is about to replace.
+        db.query(models.ClusterLabel).filter_by(project_id=project.id).delete()
+        db.commit()
+        db.refresh(project)
+        raise HTTPException(409, {
+            "code": "CONFLICT_BUSY",
+            "message": (
+                f"Project moved to {project.state} while the labels were being "
+                "saved; the labels were discarded"
+            ),
+            "project_id": project.id,
+            "hint": "wait for the current run to finish, then resubmit",
+        })
 
     counts: dict[str, int] = {}
     for v in mapping.values():

@@ -3,6 +3,8 @@ import glob
 import shutil
 import rasterio
 import geopandas as gpd
+import matplotlib
+matplotlib.use("Agg")          # headless + no GUI event loop; jobs run off-thread
 import matplotlib.pyplot as plt
 
 from rasterio.enums import Resampling
@@ -56,10 +58,15 @@ def get_ortho_gsd(ortho_path):
 
 
 # Effective resolution (post-downsample) that detection is currently tuned for,
-# calibrated off the Sanjay Van ortho (2.5 cm native / 0.3 downsample = 8.33 cm
-# effective). Every other ortho's downsample scale is derived from this target
-# instead of reusing a flat 0.3 regardless of native resolution.
-TARGET_EFFECTIVE_GSD_M = 0.025 / 0.3
+# calibrated off the Sanjay Van ortho at 0.3 downsample (the setting known to
+# detect well there). Uses its TRUE native GSD as measured by rasterio
+# (2.04 cm/px), not the assumed nominal 2.5 cm — using the nominal figure
+# silently overblurred Sanjay Van once this became adaptive (regressed a
+# working site: 6.8 cm effective before -> 8.33 cm effective after, confirmed
+# via the "Native GSD" log line). Every other ortho's downsample scale is
+# derived from this target instead of reusing a flat 0.3 regardless of
+# native resolution.
+TARGET_EFFECTIVE_GSD_M = 0.02 / 0.3
 
 
 def compute_downsample_scale(ortho_path, target_gsd_m=TARGET_EFFECTIVE_GSD_M):
@@ -337,9 +344,11 @@ def run_detectree2_pipeline(
     ax.set_ylim(bounds.bottom, bounds.top)
 
     overlay_path = os.path.join(output_dir, "overlay.png")
-    plt.axis("off")
-    plt.savefig(overlay_path, dpi=300, bbox_inches="tight")
-    plt.close()
+    # Figure-scoped: pyplot's "current figure" is process-global and concurrent
+    # jobs would otherwise save each other's plots.
+    ax.axis("off")
+    fig.savefig(overlay_path, dpi=300, bbox_inches="tight")
+    plt.close(fig)
 
     print(f"Overlay saved: {overlay_path}")
 

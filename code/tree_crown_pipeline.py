@@ -37,6 +37,8 @@ from torchvision import transforms
 from PIL import Image
 import timm
 import simplekml
+import matplotlib
+matplotlib.use('Agg')          # headless + no GUI event loop; jobs run off-thread
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import seaborn as sns
@@ -436,10 +438,13 @@ def step1_analyze_k(config, inertia_vals, silhouette_vals, db_vals, dir_cluster)
     axes[2].set_title('Davies-Bouldin Index (lower = better)', fontweight='bold')
     axes[2].grid(alpha=0.3)
     
-    plt.suptitle('k-Selection Signals', fontsize=13, fontweight='bold', y=1.02)
-    plt.tight_layout()
-    plt.savefig(os.path.join(dir_cluster, 'k_selection.png'), dpi=150, bbox_inches='tight')
-    plt.close()
+    # Figure-scoped, never pyplot's global "current figure": concurrent jobs
+    # share this process, and plt.savefig/plt.close would act on whichever
+    # figure another thread created last.
+    fig.suptitle('k-Selection Signals', fontsize=13, fontweight='bold', y=1.02)
+    fig.tight_layout()
+    fig.savefig(os.path.join(dir_cluster, 'k_selection.png'), dpi=150, bbox_inches='tight')
+    plt.close(fig)
     
     print(f'  Saved: clustering/k_selection.png')
 
@@ -475,7 +480,7 @@ def step1_tsne(config, X, names_df, all_cluster_labels, dir_cluster):
                            c=tsne_df['cluster'], cmap='tab10',
                            s=20, alpha=0.7, linewidths=0)
         
-        handles = [mpatches.Patch(color=plt.cm.tab10(i/10),
+        handles = [mpatches.Patch(color=matplotlib.colormaps['tab10'](i/10),
                                  label=f'Cluster {i}') for i in range(k)]
         ax.legend(handles=handles, bbox_to_anchor=(1.05, 1), loc='upper left',
                  fontsize=9, title=f'k={k}')
@@ -484,10 +489,10 @@ def step1_tsne(config, X, names_df, all_cluster_labels, dir_cluster):
         ax.set_xlabel('t-SNE 1')
         ax.set_ylabel('t-SNE 2')
         
-        plt.tight_layout()
-        plt.savefig(os.path.join(dir_cluster, f'tsne_k{k}.png'),
+        fig.tight_layout()
+        fig.savefig(os.path.join(dir_cluster, f'tsne_k{k}.png'),
                    dpi=150, bbox_inches='tight')
-        plt.close()
+        plt.close(fig)
     
     print('✅ Step 1 complete.')
 
@@ -705,9 +710,9 @@ def step3_validate(config):
     ax.set_ylabel('True')
     ax.set_title(f'Confusion Matrix (Accuracy: {acc*100:.1f}%)')
 
-    plt.tight_layout()
-    plt.savefig(os.path.join(val_output, 'confusion_matrix.png'), dpi=150)
-    plt.close()
+    fig.tight_layout()
+    fig.savefig(os.path.join(val_output, 'confusion_matrix.png'), dpi=150)
+    plt.close(fig)
 
     val_df.to_csv(os.path.join(val_output, 'validation_detail.csv'), index=False)
 

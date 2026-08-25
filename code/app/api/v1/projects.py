@@ -3,6 +3,7 @@ import os
 import re
 import shutil
 import tempfile
+from contextlib import contextmanager
 from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
@@ -26,8 +27,21 @@ from app.services.project_service import (
     archive_current_run,
     serialize_project,
 )
+from app.services.state import transition_if
 
 router = APIRouter()
+
+# Transient states used purely as mutual-exclusion claims. Neither is a valid
+# launch state for analyze/finalize, so holding one locks a run out for the
+# duration of the request; both are released (or the row deleted) before it
+# returns. See db/models.py for the durable state machine.
+_UPLOADING = "UPLOADING"
+_DELETING = "DELETING"
+_BUSY_STATES = ("ANALYZING", "FINALIZING", _UPLOADING, _DELETING)
+_DELETABLE_STATES = {
+    "CREATED", "UPLOADED", "AWAITING_LABELS", "LABELS_SUBMITTED",
+    "COMPLETED", "FAILED",
+}
 
 
 @router.get("/projects/mine")
@@ -141,7 +155,7 @@ def get_one(project=Depends(get_project)):
 # life of the project. A re-run changes parameters + labels only, never the
 # dataset; a different dataset means a NEW project.
 def _assert_ortho_unlocked(project) -> None:
-    if project.state in ("ANALYZING", "FINALIZING"):
+    if project.state in _BUSY_STATES:
         raise HTTPException(409, {
             "code": "CONFLICT_BUSY",
             "message": "Cannot change the dataset while a run is in progress",
@@ -163,6 +177,38 @@ def _assert_ortho_unlocked(project) -> None:
         })
 
 
+@contextmanager
+def _dataset_edit_lock(db: Session, project):
+    """Hold an exclusive claim on the project while its input files change.
+
+    ``_assert_ortho_unlocked`` alone is check-then-act: an analyze trigger can
+    win the gap between it and the write, and then the job reads an ortho that
+    ``_clear_existing_orthos`` is deleting out from under it. Two simultaneous
+    uploads race the same way.
+
+    Claiming the transient ``UPLOADING`` state with a single conditional UPDATE
+    closes both: it is not a launch state, so analyze is locked out, and the
+    loser of two concurrent uploads sees the claim fail. Released on exit — to
+    ``CREATED`` if the project ended up with no ortho (the previous one was
+    cleared before the write failed), otherwise back to where it started.
+    ``_register_ortho`` advances to UPLOADED inside the body, in which case the
+    release is a no-op because the state no longer matches.
+    """
+    pre_state = project.state
+    if not transition_if(db, project, {pre_state}, _UPLOADING):
+        db.refresh(project)
+        raise HTTPException(409, {
+            "code": "CONFLICT_BUSY",
+            "message": f"Project is busy (state {project.state}); try again",
+            "project_id": project.id,
+        })
+    try:
+        yield pre_state
+    finally:
+        remaining = db.query(models.Ortho).filter_by(project_id=project.id).count()
+        transition_if(db, project, {_UPLOADING}, pre_state if remaining else "CREATED")
+
+
 @router.patch("/projects/{project_id}")
 @router.patch("/project")
 def update_project(
@@ -179,7 +225,7 @@ def update_project(
     just updated in place. Either way the project ends in ``UPLOADED``, ready for
     ``POST /runs/analyze``.
     """
-    if project.state in ("ANALYZING", "FINALIZING"):
+    if project.state in _BUSY_STATES:
         raise HTTPException(409, {
             "code": "CONFLICT_BUSY",
             "message": "Cannot change parameters while a run is in progress",
@@ -214,7 +260,23 @@ def update_project(
         raise HTTPException(400, {"code": "BAD_REQUEST", "message": str(e),
                                   "project_id": project.id})
 
-    if project.state in USED_RUN_STATES:
+    # Claim the state atomically before touching anything. The busy check above
+    # is check-then-act: an analyze trigger can win the gap and start a run,
+    # after which archiving the run and stamping UPLOADED here would bump
+    # current_run out from under the running job and immediately re-open the
+    # project for a second, concurrent analyze. Constraining the allowed source
+    # to the exact state we validated against makes the loser fail cleanly.
+    pre_state = project.state
+    if not transition_if(db, project, {pre_state}, "UPLOADED"):
+        db.refresh(project)
+        raise HTTPException(409, {
+            "code": "CONFLICT_BUSY",
+            "message": f"Project moved to {project.state} while being reconfigured",
+            "project_id": project.id,
+            "hint": "wait for the current run to finish, then retry",
+        })
+
+    if pre_state in USED_RUN_STATES:
         archive_current_run(db, project)
 
     project.params = new_params
@@ -224,8 +286,6 @@ def update_project(
         project.source_epsg = body.source_epsg
     if body.run_name is not None:
         project.run_name = body.run_name.strip() or None
-    project.state = "UPLOADED"
-    project.error = None
     db.add(project)
     db.commit()
     db.refresh(project)
@@ -236,6 +296,18 @@ def update_project(
 @router.delete("/projects/{project_id}", status_code=204)
 @router.delete("/project", status_code=204)
 def delete_one(project=Depends(get_project), db: Session = Depends(get_db)):
+    # Claim before deleting anything: without this, a delete landing while a job
+    # runs pulls the whole project tree out from under it mid-compute. Any
+    # non-busy state may be claimed; the transient DELETING state is never
+    # observable, since the row goes away in the same request.
+    if not transition_if(db, project, _DELETABLE_STATES, _DELETING):
+        db.refresh(project)
+        raise HTTPException(409, {
+            "code": "CONFLICT_BUSY",
+            "message": f"Cannot delete while a run is in progress (state {project.state})",
+            "project_id": project.id,
+            "hint": "wait for the current run to finish",
+        })
     delete_project_dir(project.id)
     db.delete(project)
     db.commit()
@@ -266,13 +338,14 @@ def upload_ortho(
             "project_id": project.id,
         })
 
-    paths = ensure_project_dirs(project.id, project.current_run)
-    _clear_existing_orthos(project, db, paths)
+    with _dataset_edit_lock(db, project):
+        paths = ensure_project_dirs(project.id, project.current_run)
+        _clear_existing_orthos(project, db, paths)
 
-    stem = os.path.splitext(os.path.basename(file.filename))[0]
-    dst = os.path.join(paths["input_ortho"], f"{stem}.tif")
-    _stream_to_disk(file, dst, max_bytes=settings.max_upload_mb * 1024 * 1024)
-    return _register_ortho(project, db, dst, stem)
+        stem = os.path.splitext(os.path.basename(file.filename))[0]
+        dst = os.path.join(paths["input_ortho"], f"{stem}.tif")
+        _stream_to_disk(file, dst, max_bytes=settings.max_upload_mb * 1024 * 1024)
+        return _register_ortho(project, db, dst, stem)
 
 
 @router.post("/projects/{project_id}/orthomosaic/from-url")
@@ -309,6 +382,12 @@ def upload_ortho_from_url(
         raise HTTPException(503, {"code": "DEPENDENCY_MISSING",
             "message": "Server is missing the 'gdown' dependency required for URL uploads."})
 
+    with _dataset_edit_lock(db, project):
+        return _download_ortho_from_drive(project, db, file_id, gdown)
+
+
+def _download_ortho_from_drive(project, db: Session, file_id: str, gdown):
+    """Body of the from-URL upload; runs under ``_dataset_edit_lock``."""
     paths = ensure_project_dirs(project.id, project.current_run)
     tmp_dir = tempfile.mkdtemp(prefix="ortho_dl_", dir=paths["input_ortho"])
     try:
@@ -349,7 +428,11 @@ _GT_MAX_RATIO = 200                              # uncompressed/compressed ratio
 
 @router.post("/projects/{project_id}/ground-truth")
 @router.post("/project/ground-truth")
-def upload_ground_truth(project=Depends(get_project), file: UploadFile = File(...)):
+def upload_ground_truth(
+    project=Depends(get_project),
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+):
     """Upload a .zip whose top-level folders are species names containing crown
     .tif files (the structure step3_validate expects).
 
@@ -368,22 +451,25 @@ def upload_ground_truth(project=Depends(get_project), file: UploadFile = File(..
 
     import zipfile
 
-    paths = ensure_project_dirs(project.id, project.current_run)
-    # Stage the upload OUTSIDE input_gt so input_gt can be wiped for set-semantics.
-    tmp = os.path.join(paths["root"], "_gt_upload.zip")
-    _stream_to_disk(file, tmp, max_bytes=settings.max_upload_mb * 1024 * 1024)
+    with _dataset_edit_lock(db, project):
+        paths = ensure_project_dirs(project.id, project.current_run)
+        # Stage the upload OUTSIDE input_gt so input_gt can be wiped for
+        # set-semantics. The filename is fixed, so two concurrent uploads would
+        # overwrite each other's staging file — the lock is what prevents it.
+        tmp = os.path.join(paths["root"], "_gt_upload.zip")
+        _stream_to_disk(file, tmp, max_bytes=settings.max_upload_mb * 1024 * 1024)
 
-    try:
         try:
-            zf = zipfile.ZipFile(tmp)
-        except zipfile.BadZipFile:
-            raise HTTPException(400, {"code": "BAD_ARCHIVE",
-                "message": "File is not a valid .zip archive", "project_id": project.id})
-        with zf as z:
-            extracted = _safe_extract_gt_tifs(z, paths["input_gt"])
-    finally:
-        if os.path.exists(tmp):
-            os.remove(tmp)
+            try:
+                zf = zipfile.ZipFile(tmp)
+            except zipfile.BadZipFile:
+                raise HTTPException(400, {"code": "BAD_ARCHIVE",
+                    "message": "File is not a valid .zip archive", "project_id": project.id})
+            with zf as z:
+                extracted = _safe_extract_gt_tifs(z, paths["input_gt"])
+        finally:
+            if os.path.exists(tmp):
+                os.remove(tmp)
 
     if extracted == 0:
         raise HTTPException(400, {"code": "BAD_ARCHIVE",
@@ -445,11 +531,13 @@ def _register_ortho(project, db: Session, dst: str, stem: str):
     o.bands = meta.get("bands")
     o.size_bytes = os.path.getsize(dst)
     db.add(o)
-
-    if project.state in ("CREATED", "UPLOADED"):
-        project.state = "UPLOADED"
     db.add(project)
     db.commit()
+
+    # Runs under _dataset_edit_lock, so the project is in the transient
+    # UPLOADING state and this release is what publishes the result. Conditional
+    # so it can never overwrite a state someone else legitimately set.
+    transition_if(db, project, {_UPLOADING, "CREATED", "UPLOADED"}, "UPLOADED")
     db.refresh(project)
     return serialize_project(project)
 

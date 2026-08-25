@@ -28,6 +28,7 @@ artifacts under `data/`.
 |---|---|
 | Add/change an HTTP endpoint | `code/app/api/v1/<area>.py` + register in `router.py` |
 | Project state machine / status gating | `api/v1/runs.py` (`_gate`), `services/state.py` |
+| Concurrency / "who may compute" | `services/state.py` (state claims), `services/job_claim.py` (job claims) |
 | What states exist | `db/models.py` docstring (top) |
 | DB schema / a new column | `code/app/db/models.py` |
 | Env var / config knob | `code/app/core/settings.py` (all `TCP_`-prefixed) |
@@ -99,6 +100,15 @@ legacy singular `/project/…` (project resolved from header/query by
   versioning), `_last_error`.
 - `state.py` — `transition_if()`: single atomic conditional UPDATE, the only
   correct way to change `Project.state`. Loser gets `409 CONFLICT_BUSY`.
+- `job_claim.py` — the *other* mutex, for the three endpoints that compute
+  inline (`/compute/*`, `/project/analyze`, `/project/finalize`). State cannot
+  exclude them (the trigger already moved the project into the in-progress
+  state, so it is a legal source state and a conditional UPDATE onto it always
+  succeeds), so the claim is the Job INSERT against the unique
+  `(project_id, celery_task_id)` index, plus an active-job check. Keys are
+  namespaced `compute:` so the trigger's never-finished placeholder Job doesn't
+  count as active. `/compute/*` renders a loss as 400 (DAG skips); the
+  human-facing routes as 409.
 - `stac.py` (392 L) — `build_stac_item`, `write_stac_item`, WGS84 footprint from
   GeoJSON or ortho, column docs.
 - `assets.py` — STACD asset ids/versions, hosting platform.
@@ -180,7 +190,7 @@ and Google client id. `index.legacy.html` is the old UI — ignore unless asked.
 | 7–172 | CSS (two `<style>` blocks) |
 | 175–617 | Markup: auth gate, `#pastRuns`, step sections (upload → configure → review → finalize), FAQ |
 | 618+ | All JS |
-| 626–718 | `API_BASE`, auth (`initGis`, `requestLogin`, `guestLogin`, `fetchUserInfo`, `signOut`, `onSignedIn`) |
+| 626–718 | `API_BASE`, auth (`initGis`, `requestLogin`, `fetchUserInfo`, `signOut`, `onSignedIn`) |
 | 723–845 | `api()` fetch wrapper, project create/`refreshProject`, `populateModels`, ortho upload (file + URL), `pollState` |
 | 847–850 | `backboneImgSize()` — `img_size` comes from the selected DINOv2 option's `data-img`, never from a user field |
 | 852–906 | `analyze()` — reads the parameter form, gates on the EPSG fallback |
@@ -229,6 +239,12 @@ invariants 9–10); `#epsgFallback`/`p_epsg` is hidden unless the ortho had no C
 ## 9. Invariants worth not re-deriving
 
 1. **Never** set `Project.state` by read-then-write — use `state.transition_if`.
+   Constrain `allowed` to the state you actually validated against (often
+   `{pre_state}`), or the "atomic" update silently permits the race it was
+   meant to stop. A self-transition (`X` allowed → `X`) excludes nobody: that is
+   why the inline-compute endpoints claim a Job row instead
+   (`services/job_claim.py`). `transition_if` also clears `Project.error`, so
+   read any failure text you still need *before* calling it.
 2. Human routes come in `/projects/{id}/…` + `/project/…` pairs; adding one means
    adding both.
 3. `/compute/*` returns flat bodies and is exempt from the error envelope
@@ -250,21 +266,43 @@ invariants 9–10); `#epsgFallback`/`p_epsg` is hidden unless the ortho had no C
     `build_config` falls back to a hardcoded `32643` and `set_crs()` *assigns*
     it, so a wrong guess silently misplaces the export. The frontend therefore
     forces the user to supply an EPSG in that case — don't remove that gate.
+12. Requests that rewrite a project's input files or delete it hold a transient
+    state as a lock — `UPLOADING` / `DELETING` (`api/v1/projects.py`). Neither is
+    a valid analyze/finalize source state; both are released before the response
+    returns. Clients treat unknown states as busy.
+13. The worker's stdout capture is **thread-scoped** (`workers/tasks.py`
+    `_ThreadRoutedStream`). Never reintroduce `contextlib.redirect_stdout`
+    there: jobs run concurrently in this process, and an out-of-order unwind
+    leaves `sys.stdout` pointing at a closed file, silently dropping every later
+    write process-wide.
+14. Pipeline plotting is figure-scoped (`fig.savefig`, `plt.close(fig)`), never
+    `plt.savefig` / `plt.close()`. pyplot's "current figure" is process-global
+    and concurrent jobs would save each other's plots. Backend is forced to Agg.
+15. SQLite runs in WAL with a 30 s busy timeout (`db/session.py`). Job progress
+    is written throughout a run while requests read; the default rollback
+    journal turns that into "database is locked".
 
 ---
 
 ## 10. Snapshot of in-flight work
 
-Dated **2026-07-30** (branch `main`, last commit `72f3d8e`). Confirm with
+Dated **2026-08-15** (branch `newchanges`, last commit `4e42cf7`). Confirm with
 `git status` before trusting; delete entries once merged.
 
-Modified:
+**Race-condition pass** (uncommitted). New `services/job_claim.py`; claims added
+to `api/v1/{compute,analyze,finalize,labels,projects,runs}.py`; unique
+`(project_id, celery_task_id)` index on `jobs` + WAL in `db/session.py`
+(migration `_migrate_sqlite_unique_job_key` dedupes legacy rows first);
+thread-scoped stdout capture and locked model caches in `workers/tasks.py`;
+figure-scoped plotting in `tree_crown_pipeline.py` / `predict.py`. See
+invariants 1, 12–15. Airflow's wire contract is unchanged — the DAG files were
+not touched.
+
+Modified (pre-existing):
 - `code/predict.py` — GSD-aware downsampling: `get_ortho_gsd`,
   `TARGET_EFFECTIVE_GSD_M`, `compute_downsample_scale`; default `scale` 0.3→1.
 - `docker-compose.yml` / `.hub.yml` — CPU service definitions commented out,
   replaced by an NVIDIA-GPU service (`treecrown-workstation:cu128`).
-- `frontend/index.html` — "Continue as guest" bypass (`guestLogin`, fixed
-  `guest@guest.local` identity).
 
 Untracked of interest: the three scripts in §8, `docs/progress_reports/`,
 `bbmp_tree_census_july_2026.geojson`, `drone_imagery1.{tif,png,pgw}`,

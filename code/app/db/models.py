@@ -4,11 +4,27 @@ State machine (see API_DESIGN.md section 4):
   CREATED -> UPLOADED -> ANALYZING -> AWAITING_LABELS
           -> LABELS_SUBMITTED -> FINALIZING -> COMPLETED
   (any heavy stage may go -> FAILED)
+
+Two further states exist only as short-lived mutual-exclusion claims held for
+the duration of a single request, never across one (see api/v1/projects.py):
+  UPLOADING  - input files are being replaced
+  DELETING   - the project is being torn down
+Neither is a valid launch state for analyze/finalize, which is what makes them
+work as locks. Clients should treat any unknown state as "busy".
 """
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, Float, ForeignKey, Integer, JSON, String, Text
+from sqlalchemy import (
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    JSON,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.logging import naive_now
@@ -81,6 +97,14 @@ class Ortho(Base):
 
 class Job(Base):
     __tablename__ = "jobs"
+
+    # The idempotency claim for /compute/*: the INSERT, not a preceding SELECT,
+    # is what decides which of two simultaneous callbacks carrying the same
+    # Idempotency-Key gets to compute. NULLs compare distinct, so jobs created
+    # before dispatch assigns an id are unaffected.
+    __table_args__ = (
+        UniqueConstraint("project_id", "celery_task_id", name="uq_jobs_project_task"),
+    )
 
     id: Mapped[str] = mapped_column(String, primary_key=True, default=_uuid)
     project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), index=True)

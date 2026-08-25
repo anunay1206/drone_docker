@@ -98,10 +98,15 @@ def _fail_trigger(db: Session, project, job, exc: Exception) -> None:
     job.state = "FAILED"
     job.error = str(exc)
     job.finished_at = naive_now()
-    project.state = "FAILED"
-    project.error = str(exc)
-    db.add_all([job, project])
+    db.add(job)
     db.commit()
+    # Conditional: only roll back the in-progress state this trigger claimed.
+    # A blind assignment could stamp FAILED over a state something else has
+    # legitimately moved on to.
+    if transition_if(db, project, _BUSY, "FAILED"):
+        project.error = str(exc)
+        db.add(project)
+        db.commit()
 
 
 def _mark_dispatched(db: Session, job, run_id: str) -> None:
