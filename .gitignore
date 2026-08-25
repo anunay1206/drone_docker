@@ -32,3 +32,18 @@ gt_compare*/
 docs/progress_reports/*/tiles/
 # Spatial index derived from the raw census geojson by code/scripts/index_census.py
 bbmp_tree_census.gpkg
+# Gujarat Mission 4/5 detection-run review artifacts. Both regenerate from
+# data/storage/projects/<id>/work/run_*; the 1.1 GB run bundle is already
+# covered by *.zip above.
+gujarat_m4_m5_runs.zip
+docs/Gujarat_M4_M5_detection_run_comparison.pptx
+frontend/filebrowser_fetch_test.html
+frontend/index.legacy.html
+frontend/index1.html
+docs/progress_reports
+docs/presentations
+# Local-only patch that restores the "Continue as guest" auth bypass for
+# development. Not shipped: the pushed frontend requires Google sign-in.
+# Re-apply with: git apply .guest-login.patch
+# Remove again with: git apply -R .guest-login.patch
+.guest-login.patch
