@@ -153,8 +153,6 @@
     #auth-gate button.primary-sso:disabled{opacity:.5;cursor:default}
     #auth-gate button.primary-sso .g-icon{width:20px;height:20px;background:#fff;border-radius:2px;display:grid;place-items:center;flex:none}
     #auth-gate button.primary-sso .g-icon svg{width:12px;height:12px}
-    #auth-gate button.guest-btn{font:inherit;font-weight:600;border:1px solid #c7c1b0;border-radius:4px;padding:12px 20px;cursor:pointer;background:transparent;color:var(--green-d);transition:background .15s}
-    #auth-gate button.guest-btn:hover{background:#f0ede3}
     #auth-gate .gate-note{font-size:12px;color:var(--muted);max-width:240px;line-height:1.4}
     #auth-gate .gate-note b{color:var(--green-d)}
     #auth-gate .gerr{color:var(--err);font-size:12px;display:block;margin-top:4px;min-height:1em}
@@ -322,7 +320,7 @@
 </head>
 <body>
   <!-- Google sign-in gate (landing_I_grid). Covers the app until sign-in
-       succeeds (or a guest continues). Auto-hidden when auth is not configured (dev). -->
+       succeeds. Auto-hidden when auth is not configured (dev). -->
   <div id="auth-gate">
     <div class="wrap">
       <header class="top fade-slide del-1">
@@ -367,12 +365,8 @@
               </span>
               <span id="ssoLabel">Loading Google sign-in…</span>
             </button>
-            <button id="guestBtn" class="guest-btn" onclick="guestLogin()">
-              Continue as guest
-            </button>
             <div class="gate-note">
-              Institutional access via <b>Google SSO</b>, or continue as a
-              <b>guest</b> for a quick, unauthenticated session.
+              Institutional access via <b>Google SSO</b>.
               <span id="gateErr" class="gerr"></span>
             </div>
           </div>
@@ -683,7 +677,7 @@
           <div class="faq-body">
             <ul>
               <li>A drone survey exported as a <strong>GeoTIFF (.tif)</strong> — RGB or multispectral</li>
-              <li>A signed-in account (Google sign-in on the landing page), or continue as a guest</li>
+              <li>A signed-in account (Google sign-in on the landing page)</li>
               <li>Rough knowledge of the tree species present in your area</li>
             </ul>
             No programming skills required.
@@ -865,13 +859,12 @@
       </div>
       <p class="guide-lede">
         If something looks wrong afterwards, the table below points you at the
-        setting that controls it. You do not need to read the rest of this page
-        to run the tool.
+        setting that controls it. 
       </p>
 
       <h2>What happens inside, in six steps</h2>
       <ol style="font-size:14px;line-height:1.7">
-        <li>Your survey photo is one enormous image — often 20,000 pixels across.</li>
+        <li>Your survey photo is one large image/TIFF</li>
         <li>It is cut into small squares called <b>tiles</b>, which overlap slightly.</li>
         <li>The model looks at each tile and draws an outline around every tree it recognises.</li>
         <li>Outlines from neighbouring tiles are stitched together and duplicates are merged.</li>
@@ -964,39 +957,32 @@ const PARAM_DOCS = {
     code: "Detectree2 weights",
     hint: "Detectree2 weights used to find crowns. Pick one trained on similar imagery.",
     plain: "Which trained model does the looking. Each one learned from a different set of aerial photos, so each is good at different scenery.",
-    analogy: "Like hiring a surveyor. One has spent years in dense rainforest, another in an English city. Both know trees; they notice different things.",
     down: null, up: null,
-    meta: "<b>Choose the one trained on scenery closest to yours.</b> A model trained on closed rainforest will happily mistake a green crop field for a canopy. None of the available models was trained on Indian imagery, so expect to compare two and keep the better one."
   },
   tile_size: {
     title: "Tile size",
     code: "tile_size · metres · default 10",
     hint: "Detection tile edge (m). Smaller = finer & more tiles, but slower.",
     plain: "How big a square of ground the model examines in one go, measured in metres on the ground.",
-    analogy: "Reading a newspaper through a square hole cut in card. A small hole shows fine print clearly but you never see the headline.",
     down: "Large trees get split across several tiles. The model sees no surroundings to judge size against. Tile count explodes and the run takes far longer.",
     up:   "Small trees shrink to a handful of pixels and are missed entirely.",
-    meta: "<b>Default 10 m. Commonly better: 30–40 m.</b> Change it when big trees come out in pieces, or when a run is taking hours."
+    meta: "<b>Default 10 m. Commonly better: 30–40 m.</b> Change it when big trees are not getting detected."
   },
   buffer: {
     title: "Buffer",
     code: "buffer · metres · default 10",
     hint: "Tile overlap (m) so crowns on tile edges aren't cut in half.",
     plain: "Extra ground included around every tile so a tree sitting on a tile boundary still appears whole in at least one tile.",
-    analogy: "Overlapping the edges when you photograph a long wall in sections, so nothing falls in the gap between shots.",
     down: "Trees straddling a tile edge get cut in half and may be counted twice or missed.",
-    up:   "More overlapping ground is processed twice, so the run gets slower for no extra coverage.",
-    meta: "<b>Default 10 m. Rule of thumb: at least half the width of your largest tree.</b> A 30 m banyan wants roughly 15 m."
+    up:   "More overlapping ground is processed twice, so the run gets slower for no extra coverage."
   },
   iou_threshold: {
     title: "Overlap merge threshold",
     code: "iou_threshold · 0–1 · default 0.9",
     hint: "Merge overlapping crown boxes above this (0–1). Higher = fewer merges.",
     plain: "How much two outlines must overlap before the app decides they are the same tree and keeps only one.",
-    analogy: "Deduplicating a guest list. Set the bar very high and you only merge exact duplicates, so near-identical entries both survive.",
     down: "Distinct but touching trees get merged into one blob.",
-    up:   "The same tree stays outlined two or three times, inflating your count.",
-    meta: "<b>Default 0.9, which is unusually permissive. The library's own default is 0.7.</b> Lower it toward 0.6 if neighbouring crowns are being merged."
+    up:   "The same tree stays outlined two or three times, inflating your count."
   },
   conf_threshold: {
     title: "Confidence threshold",
@@ -1005,25 +991,22 @@ const PARAM_DOCS = {
     plain: "How certain the model must be before an outline is kept. Every detection carries a score from 0 to 1.",
     analogy: "A spam filter's strictness. Turn it up and your inbox is clean but real mail goes missing.",
     down: "More real trees found, but also more bushes, hedges and green rooftops.",
-    up:   "Only obvious, isolated trees survive. Anything partly shaded or overlapping is dropped.",
-    meta: "<b>Default 0.85 is strict.</b> Start around 0.4–0.5 on new imagery, look at the map, then tighten. Lowering it is the first thing to try when very few crowns appear."
+    up:   "Only obvious, isolated trees survive. Anything partly shaded or overlapping is dropped."
   },
   detections_per_image: {
     title: "Max crowns per tile",
     code: "detections_per_image · default 6 · allowed 1–500",
     hint: "Cap on crowns reported per tile. Extras are dropped without warning.",
     plain: "The most trees that can be reported from any one tile. If a tile holds more than this, the rest are thrown away silently.",
-    analogy: "A form with only six lines for names. A seventh guest simply does not get written down.",
     down: "Dense areas are under-counted, and nothing tells you it happened — the map just looks sparse where the trees are thickest.",
     up:   "Slightly slower, and low-confidence guesses start appearing. Not harmful, but raise the confidence threshold with it.",
-    meta: "<b>Default 6. The detection library's own default is 100.</b> Six is far too low for anything but a very small tile — one 60 m tile over an orchard can hold fifty trees. Raise this first if your map looks emptier than the imagery."
+    meta: "<b>Default 6. </b> Six is too low for anything but a very small tile. Raise this first if your map looks emptier than the imagery."
   },
   area_min: {
     title: "Smallest crown to keep",
     code: "area_min · m² · default 4",
     hint: "Outlines smaller than this are discarded after detection.",
     plain: "Anything smaller than this is treated as a bush, a shadow or noise rather than a tree.",
-    analogy: "A sieve. Set the mesh too fine and you keep the grit along with the grain.",
     down: "Shrubs, hedge sections and shadow fragments start appearing as trees.",
     up:   "Genuine young or small trees are thrown away.",
     meta: "<b>Default 4 m², about a 2.3 m crown.</b> Raise toward 6–10 m² if small noise is cluttering the map."
@@ -1033,27 +1016,22 @@ const PARAM_DOCS = {
     code: "area_max · m² · default 2000",
     hint: "Outlines larger than this are discarded after detection.",
     plain: "Anything bigger than this is assumed to be a mistake rather than one very large tree.",
-    analogy: "A weight limit on a parcel. Past a point it is not a parcel any more, it is furniture.",
     down: "Real large trees — a mature banyan can exceed 700 m² — get deleted.",
     up:   "A whole green field or a block of joined canopy can be reported as one enormous tree.",
-    meta: "<b>Default 2000 m², about a 50 m crown — generous.</b> Over farmland, 700 m² is a tighter and safer limit, since that is the main defence against a green crop plot being reported as a single tree. Always sort your results by area and check the largest twenty."
   },
   min_size_test: {
     title: "Picture size fed to the model",
     code: "min_size_test · pixels · default 512",
     hint: "Every tile is resized to this before the model sees it. Sets the zoom.",
     plain: "Whatever ground you asked for in a tile, it is squeezed or stretched to this many pixels before the model looks at it.",
-    analogy: "A passport photo booth. The print is always the same size, so standing back to fit more in only makes your face smaller.",
     down: "Everything in the tile appears smaller, and small trees fall below what the model can recognise.",
     up:   "Everything appears larger and slower to process. Stretching beyond the original detail invents nothing new.",
-    meta: "<b>Default 512. The models here were trained near 1000.</b> This and the tile footprint work as a pair: <code>pixels per metre = min_size_test ÷ (tile_size + 2 × buffer)</code>. Changing the tile alone moves only half the fraction."
   },
   full_coverage: {
     title: "Include the image edges",
     code: "full_coverage · default off",
     hint: "Also tile the leftover strip along the right and bottom edges.",
     plain: "Tiles are laid out in a grid, and the grid rarely divides the image exactly. This decides whether the leftover strip is processed too.",
-    analogy: "Tiling a floor. Turn this off and you leave the awkward last row against the wall bare.",
     down: null,
     up:   null,
     meta: "<b>Off by default, which silently skips a strip along two edges of every survey.</b> Turn it on unless you have a reason not to; the cost is a handful of extra tiles."
@@ -1063,7 +1041,6 @@ const PARAM_DOCS = {
     code: "DINOv2 backbone",
     hint: "Vision model that turns each crown into features for clustering. Also fixes the crop size each crown is resized to.",
     plain: "Turns each detected crown into a list of numbers describing its colour and texture, so crowns can be compared to one another.",
-    analogy: "Describing each tree on an index card using the same fields every time. You then sort the cards by how alike the descriptions are.",
     down: null, up: null,
     meta: "It has no effect on which trees are found — only on how they are grouped afterwards. Larger backbones are slower and describe crowns in more detail."
   },
@@ -1072,20 +1049,16 @@ const PARAM_DOCS = {
     code: "pca_components · default 50",
     hint: "Feature dimensions kept before clustering. Lower = faster, coarser.",
     plain: "Each crown starts as hundreds of numbers. This compresses them to the most informative few before grouping.",
-    analogy: "Summarising a long report down to its main points. Keep too few and you lose the distinctions that mattered.",
     down: "Grouping gets coarse — genuinely different species may land in one cluster.",
     up:   "Slower, and past a point it adds noise rather than detail. It can never exceed the number of crowns you actually detected.",
-    meta: "<b>Default 50 is sensible.</b> Leave it alone unless a run has very few crowns, in which case it is automatically capped."
   },
   k_list: {
     title: "Candidate cluster counts",
     code: "k_list · comma-separated · default 2,4,6,8,10",
     hint: "Candidate cluster counts to try. The app recommends one of these to label.",
     plain: "How many groups to sort the trees into. The app tries every number you list and recommends one, but you make the final call.",
-    analogy: "Sorting a bag of mixed screws. Into how many trays? There is no single right answer — it depends on how finely you care to distinguish them.",
     down: "Too few groups and distinct species end up sharing a tray.",
     up:   "Too many and the same species is split across several trays.",
-    meta: "<b>Start with the default spread.</b> If you already expect roughly six species, try 4,5,6,7,8 to look closely around that number. The groups come out unnamed — they are crowns that look alike, not species, until you name them in the labelling step."
   }
 };
 
@@ -1110,7 +1083,7 @@ const GUIDE_GROUPS = [
 // Reverse lookup: people arrive with a map that looks wrong, not with a
 // parameter in mind. Each row links to the card that fixes it.
 const GUIDE_SYMPTOMS = [
-  ["Large trees come out chopped into pieces", "The tile is smaller than the tree", ["tile_size","buffer"]],
+  ["Large trees not being detected or getting croped", "The tile is smaller than the tree", ["tile_size","buffer"]],
   ["One outline covers several trees",         "Outlines are being merged too eagerly", ["iou_threshold"]],
   ["The same tree is outlined twice",          "Outlines are not being merged enough", ["iou_threshold"]],
   ["Far fewer trees than you can see",         "The model is being too cautious, or the per-tile cap is low", ["conf_threshold","detections_per_image"]],
@@ -1277,21 +1250,6 @@ function requestLogin(){
   gateError("");
   if(!AUTH.ready || !AUTH.client){ gateError("Google sign-in still loading…"); return; }
   AUTH.client.requestAccessToken();   // shows the consent popup
-}
-
-// Guest bypass: skips Google OAuth entirely and assigns a per-session
-// placeholder identity so the app still has something to send as
-// X-User-Email / X-User-Id for audit + ownership headers.
-function guestLogin(){
-//   gateError("");
-//   const rand = Math.random().toString(36).slice(2, 10);
-//   AUTH.email = "guest-" + rand + "@guest.local";
-//   AUTH.userId = "guest-" + rand;
-//   onSignedIn();
-    gateError("");
-    AUTH.email = "guest@guest.local";
-    AUTH.userId = "guest";
-    onSignedIn();
 }
 
 async function fetchUserInfo(){
@@ -1953,10 +1911,9 @@ function initGateCanvas(){
 
 // ── Boot ────────────────────────────────────────────────────────────────
 // If a real Google client id is configured, keep the sign-in gate up and wait
-// for the user to authenticate (onSignedIn boots the app) — or let them
-// bypass it via guestLogin(). If auth is not configured (local dev /
-// unconfigured deploy), bypass the gate so the pipeline stays usable,
-// matching backend auth_enabled=False.
+// for the user to authenticate (onSignedIn boots the app). If auth is not
+// configured (local dev / unconfigured deploy), bypass the gate so the
+// pipeline stays usable, matching backend auth_enabled=False.
 window.addEventListener("load", ()=>{
   // Independent of auth: field hints and the guide route are static content.
   renderHints();
@@ -1976,7 +1933,7 @@ window.addEventListener("load", ()=>{
   });
 
   if(AUTH_CONFIGURED){
-    initGis();                         // gate stays visible until sign-in / guest
+    initGis();                         // gate stays visible until sign-in
     initGateCanvas();                  // animate the landing plate
   } else {
     const gate = $("auth-gate"); if(gate) gate.classList.add("hidden");
